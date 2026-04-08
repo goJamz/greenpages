@@ -52,5 +52,5 @@ func (applicationServer *Server) registerRoutes(requestMultiplexer *http.ServeMu
 func (applicationServer *Server) handleHealth(responseWriter http.ResponseWriter, request *http.Request) {
 	responseWriter.Header().Set("Content-Type", "application/json")
 	responseWriter.WriteHeader(http.StatusOK)
-	_, _ = responseWriter.Write([]byte("{\"status\":\"ok\"}\n"))
+	_, _ = responseWriter.Write([]byte(`{"status":"ok"}` + "\n"))
 }
