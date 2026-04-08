@@ -2,15 +2,14 @@ package main
 
 import (
 	"log"
-	"net/http"
 
 	internalserver "github.com/goJamz/greenpages/backend/internal/server"
 )
 
 func main() {
-	var applicationAddress string      // Network address the HTTP server listens on.
-	var applicationServer *http.Server // Configured HTTP server instance for the backend.
-	var serverError error              // Error returned when the HTTP server stops unexpectedly.
+	var applicationAddress string                // Network address the HTTP server listens on.
+	var applicationServer *internalserver.Server // Application server with routes and shared dependencies.
+	var serverError        error                 // Error returned when the HTTP server stops unexpectedly.
 
 	applicationAddress = ":8080"
 
@@ -18,7 +17,7 @@ func main() {
 
 	log.Printf("starting server on %s", applicationAddress)
 
-	serverError = applicationServer.ListenAndServe()
+	serverError = applicationServer.Start()
 	if serverError != nil {
 		log.Fatal(serverError)
 	}
