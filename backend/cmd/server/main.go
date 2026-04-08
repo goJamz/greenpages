@@ -6,19 +6,22 @@ import (
 )
 
 func main() {
-	var applicationAddress string        // Network address the HTTP server listens on.
-	var requestHandler http.Handler      // Root HTTP handler for all incoming requests.
-	var serverError error                // Error returned when the HTTP server stops unexpectedly.
+	var applicationAddress string   // Network address the HTTP server listens on.
+	var requestMultiplexer *http.ServeMux // Routes incoming requests to the correct handler by method and path.
+	var serverError error          // Error returned when the HTTP server stops unexpectedly.
 
 	applicationAddress = ":8080"
 
-	requestHandler = http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
-		_, _ = responseWriter.Write([]byte("greenpages backend is running\n"))
+	requestMultiplexer = http.NewServeMux()
+
+	requestMultiplexer.HandleFunc("GET /api/health", func(responseWriter http.ResponseWriter, request *http.Request) {
+		responseWriter.Header().Set("Content-Type", "application/json")
+		_, _ = responseWriter.Write([]byte(`{"status":"ok"}`))
 	})
 
 	log.Printf("starting server on %s", applicationAddress)
 
-	serverError = http.ListenAndServe(applicationAddress, requestHandler)
+	serverError = http.ListenAndServe(applicationAddress, requestMultiplexer)
 	if serverError != nil {
 		log.Fatal(serverError)
 	}
