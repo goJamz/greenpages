@@ -1,12 +1,18 @@
-FROM golang:1.22-alpine AS builder
+FROM golang:1.26.2-bookworm AS builder
 
-WORKDIR /build
-COPY . .
-RUN go mod tidy && CGO_ENABLED=0 go build -o server ./cmd/server
-
-FROM alpine:3.20
-RUN apk add --no-cache ca-certificates
 WORKDIR /app
-COPY --from=builder /build/server .
+
+COPY go.mod ./
+COPY cmd ./cmd
+
+RUN go build -o /app/server ./cmd/server
+
+FROM debian:bookworm-slim
+
+WORKDIR /app
+
+COPY --from=builder /app/server /app/server
+
 EXPOSE 8080
+
 CMD ["/app/server"]
