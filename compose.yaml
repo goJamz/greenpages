@@ -1,7 +1,31 @@
 services:
+  postgres:
+    image: postgres:18.3
+    container_name: greenpages-postgres
+    environment:
+      POSTGRES_DB: greenpages
+      POSTGRES_USER: greenpages
+      POSTGRES_PASSWORD: greenpages
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./backend/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U greenpages -d greenpages"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   backend:
     build:
       context: ./backend
     container_name: greenpages-backend
     ports:
       - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
