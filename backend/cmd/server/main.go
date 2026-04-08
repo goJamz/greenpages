@@ -6,9 +6,9 @@ import (
 )
 
 func main() {
-	var applicationAddress string   // Network address the HTTP server listens on.
+	var applicationAddress string         // Network address the HTTP server listens on.
 	var requestMultiplexer *http.ServeMux // Routes incoming requests to the correct handler by method and path.
-	var serverError error          // Error returned when the HTTP server stops unexpectedly.
+	var serverError        error          // Error returned when the HTTP server stops unexpectedly.
 
 	applicationAddress = ":8080"
 
