@@ -2,26 +2,19 @@ package main
 
 import (
 	"log"
-	"net/http"
+
+	"github.com/goJamz/greenpages/backend/internal/server"
 )
 
 func main() {
-	var applicationAddress string         // Network address the HTTP server listens on.
-	var requestMultiplexer *http.ServeMux // Routes incoming requests to the correct handler by method and path.
-	var serverError        error          // Error returned when the HTTP server stops unexpectedly.
+	var srv *server.Server // Configured HTTP server ready to listen.
+	var serverError error  // Error returned when the server stops unexpectedly.
 
-	applicationAddress = ":8080"
+	srv = server.New()
 
-	requestMultiplexer = http.NewServeMux()
+	log.Printf("starting server on %s", srv.Addr)
 
-	requestMultiplexer.HandleFunc("GET /api/health", func(responseWriter http.ResponseWriter, request *http.Request) {
-		responseWriter.Header().Set("Content-Type", "application/json")
-		_, _ = responseWriter.Write([]byte(`{"status":"ok"}`))
-	})
-
-	log.Printf("starting server on %s", applicationAddress)
-
-	serverError = http.ListenAndServe(applicationAddress, requestMultiplexer)
+	serverError = srv.Start()
 	if serverError != nil {
 		log.Fatal(serverError)
 	}
