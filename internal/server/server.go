@@ -5,50 +5,25 @@ import (
 	"time"
 )
 
-// Server wraps an http.Server with application-specific configuration.
-type Server struct {
-	httpServer *http.Server // Underlying HTTP server with timeouts and routing.
-	Addr       string       // Network address the server listens on.
-}
+func New(applicationAddress string) *http.Server {
+	var requestMultiplexer *http.ServeMux // Routes incoming requests to the correct handler by method and path.
+	var applicationServer *http.Server    // Configured HTTP server instance returned to the caller.
 
-// New creates a Server with routes registered and timeouts configured.
-func New() *Server {
-	var mux *http.ServeMux       // Routes incoming requests to the correct handler by method and path.
-	var addr string              // Network address the server will listen on.
-	var httpServer *http.Server  // Standard library HTTP server with timeout settings.
+	requestMultiplexer = http.NewServeMux()
 
-	addr = ":8080"
+	requestMultiplexer.HandleFunc("GET /api/health", func(responseWriter http.ResponseWriter, request *http.Request) {
+		responseWriter.Header().Set("Content-Type", "application/json")
+		responseWriter.WriteHeader(http.StatusOK)
+		_, _ = responseWriter.Write([]byte("{\"status\":\"ok\"}\n"))
+	})
 
-	mux = http.NewServeMux()
-	registerRoutes(mux)
-
-	httpServer = &http.Server{
-		Addr:         addr,
-		Handler:      mux,
-		ReadTimeout:  10 * time.Second,  // Max time to read the full request including body.
-		WriteTimeout: 30 * time.Second,  // Max time to write the full response.
-		IdleTimeout:  120 * time.Second, // Max time to keep idle keep-alive connections open.
+	applicationServer = &http.Server{
+		Addr:         applicationAddress,
+		Handler:      requestMultiplexer,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
 
-	return &Server{
-		httpServer: httpServer,
-		Addr:       addr,
-	}
-}
-
-// Start begins listening and serving HTTP requests. It blocks until the server
-// encounters an error or is shut down.
-func (s *Server) Start() error {
-	return s.httpServer.ListenAndServe()
-}
-
-// registerRoutes adds all application routes to the provided mux.
-func registerRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/health", handleHealth)
-}
-
-// handleHealth responds with the application health status.
-func handleHealth(responseWriter http.ResponseWriter, request *http.Request) {
-	responseWriter.Header().Set("Content-Type", "application/json")
-	_, _ = responseWriter.Write([]byte(`{"status":"ok"}`))
+	return applicationServer
 }
