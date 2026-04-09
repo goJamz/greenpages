@@ -55,7 +55,8 @@ func (applicationServer *Server) registerRoutes(requestMultiplexer *http.ServeMu
 // Used as a Kubernetes liveness probe. Does not check dependencies.
 func (applicationServer *Server) handleHealth(responseWriter http.ResponseWriter, request *http.Request) {
 	responseWriter.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(responseWriter).Encode(map[string]string{
+	responseWriter.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(responseWriter).Encode(map[string]string{
 		"status": "ok",
 	})
 }
