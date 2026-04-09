@@ -1,18 +1,21 @@
 package server
 
 import (
+	"database/sql"
+	"encoding/json"
 	"net/http"
 	"time"
 )
 
-// Server holds the HTTP server and future shared application dependencies.
+// Server holds the HTTP server and shared application dependencies.
 type Server struct {
-	address     string      // Network address the server listens on.
+	address    string       // Network address the server listens on.
 	httpServer *http.Server // Underlying HTTP server with routing and timeouts.
+	db         *sql.DB      // Database handle shared across handlers.
 }
 
-// New creates a configured application server.
-func New(applicationAddress string) *Server {
+// New creates a configured application server with database access.
+func New(applicationAddress string, database *sql.DB) *Server {
 	var requestMultiplexer *http.ServeMux // Routes incoming requests to the correct handler by method and path.
 	var applicationServer  *Server        // Application server with shared dependencies and HTTP server.
 	var standardHTTPServer *http.Server   // Standard library HTTP server configured with routing and timeouts.
@@ -21,6 +24,7 @@ func New(applicationAddress string) *Server {
 
 	applicationServer = &Server{
 		address: applicationAddress,
+		db:      database,
 	}
 
 	applicationServer.registerRoutes(requestMultiplexer)
@@ -48,9 +52,22 @@ func (applicationServer *Server) registerRoutes(requestMultiplexer *http.ServeMu
 	requestMultiplexer.HandleFunc("GET /api/health", applicationServer.handleHealth)
 }
 
-// handleHealth responds with the application health status.
+// handleHealth responds with application and database health status.
 func (applicationServer *Server) handleHealth(responseWriter http.ResponseWriter, request *http.Request) {
+	var pingError      error  // Error returned if the database is unreachable.
+	var databaseStatus string // Current database connectivity status.
+
+	pingError = applicationServer.db.PingContext(request.Context())
+	if pingError != nil {
+		databaseStatus = "unreachable"
+	} else {
+		databaseStatus = "ok"
+	}
+
 	responseWriter.Header().Set("Content-Type", "application/json")
-	responseWriter.WriteHeader(http.StatusOK)
-	_, _ = responseWriter.Write([]byte(`{"status":"ok"}` + "\n"))
+
+	json.NewEncoder(responseWriter).Encode(map[string]string{
+		"status":   "ok",
+		"database": databaseStatus,
+	})
 }
