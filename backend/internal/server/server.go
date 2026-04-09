@@ -9,7 +9,6 @@ import (
 
 // Server holds the HTTP server and shared application dependencies.
 type Server struct {
-	address    string       // Network address the server listens on.
 	httpServer *http.Server // Underlying HTTP server with routing and timeouts.
 	db         *sql.DB      // Database handle shared across handlers.
 }
@@ -23,8 +22,7 @@ func New(applicationAddress string, database *sql.DB) *Server {
 	requestMultiplexer = http.NewServeMux()
 
 	applicationServer = &Server{
-		address: applicationAddress,
-		db:      database,
+		db: database,
 	}
 
 	applicationServer.registerRoutes(requestMultiplexer)
@@ -50,24 +48,40 @@ func (applicationServer *Server) Start() error {
 // registerRoutes attaches all routes for the application.
 func (applicationServer *Server) registerRoutes(requestMultiplexer *http.ServeMux) {
 	requestMultiplexer.HandleFunc("GET /api/health", applicationServer.handleHealth)
+	requestMultiplexer.HandleFunc("GET /api/readyz", applicationServer.handleReadyz)
 }
 
-// handleHealth responds with application and database health status.
+// handleHealth responds with the application process status.
+// Used as a Kubernetes liveness probe. Does not check dependencies.
 func (applicationServer *Server) handleHealth(responseWriter http.ResponseWriter, request *http.Request) {
+	responseWriter.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(responseWriter).Encode(map[string]string{
+		"status": "ok",
+	})
+}
+
+// handleReadyz responds with the application readiness status.
+// Used as a Kubernetes readiness probe. Checks database connectivity.
+func (applicationServer *Server) handleReadyz(responseWriter http.ResponseWriter, request *http.Request) {
 	var pingError      error  // Error returned if the database is unreachable.
 	var databaseStatus string // Current database connectivity status.
 
 	pingError = applicationServer.db.PingContext(request.Context())
 	if pingError != nil {
 		databaseStatus = "unreachable"
-	} else {
-		databaseStatus = "ok"
+		responseWriter.Header().Set("Content-Type", "application/json")
+		responseWriter.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(responseWriter).Encode(map[string]string{
+			"status":   "not ready",
+			"database": databaseStatus,
+		})
+		return
 	}
 
+	databaseStatus = "ok"
 	responseWriter.Header().Set("Content-Type", "application/json")
-
 	json.NewEncoder(responseWriter).Encode(map[string]string{
-		"status":   "ok",
+		"status":   "ready",
 		"database": databaseStatus,
 	})
 }
