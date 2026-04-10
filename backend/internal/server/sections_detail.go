@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 const sectionDetailQuery = `
@@ -26,45 +27,44 @@ WHERE s.section_id = $1
   AND s.is_current = TRUE;
 `
 
-// sectionBilletsQuery returns every billet in a section with its primary
-// occupant if one exists. Billets without an occupant row return NULLs
-// for the person columns, which the handler interprets as Vacant.
 const sectionBilletsQuery = `
 SELECT
     b.billet_id,
-    COALESCE(b.position_number, '')  AS position_number,
+    COALESCE(b.position_number, '') AS position_number,
     b.billet_title,
-    COALESCE(b.grade_code, '')       AS grade_code,
-    COALESCE(b.rank_group, '')       AS rank_group,
-    COALESCE(b.branch_code, '')      AS branch_code,
-    COALESCE(b.mos_code, '')         AS mos_code,
-    COALESCE(b.aoc_code, '')         AS aoc_code,
-    COALESCE(b.component, '')        AS component,
-    COALESCE(b.uic, '')              AS uic,
+    COALESCE(b.grade_code, '') AS grade_code,
+    COALESCE(b.rank_group, '') AS rank_group,
+    COALESCE(b.branch_code, '') AS branch_code,
+    COALESCE(b.mos_code, '') AS mos_code,
+    COALESCE(b.aoc_code, '') AS aoc_code,
+    COALESCE(b.component, '') AS component,
+    COALESCE(b.uic, '') AS uic,
     COALESCE(b.paragraph_number, '') AS paragraph_number,
-    COALESCE(b.line_number, '')      AS line_number,
-    COALESCE(b.duty_location, '')    AS duty_location,
-    COALESCE(b.state_code, '')       AS state_code,
+    COALESCE(b.line_number, '') AS line_number,
+    COALESCE(b.duty_location, '') AS duty_location,
+    COALESCE(b.state_code, '') AS state_code,
+    COALESCE(b.occupancy_status, 'unknown') AS occupancy_status,
     p.person_id,
-    p.display_name                   AS occupant_name,
-    p.rank                           AS occupant_rank,
-    p.work_email                     AS occupant_email,
-    p.work_phone                     AS occupant_phone,
-    p.office_symbol                  AS occupant_office_symbol,
-    bo.is_primary                    AS occupant_is_primary
+    COALESCE(p.display_name, '') AS occupant_name,
+    COALESCE(p.rank, '') AS occupant_rank,
+    COALESCE(p.work_email, '') AS occupant_email,
+    COALESCE(p.work_phone, '') AS occupant_phone,
+    COALESCE(p.office_symbol, '') AS occupant_office_symbol,
+    COALESCE(bo.is_primary, FALSE) AS occupant_is_primary
 FROM billets b
 LEFT JOIN billet_occupants bo
     ON bo.billet_id = b.billet_id
-    AND bo.occupancy_status = 'active'
+   AND bo.assignment_status = 'active'
 LEFT JOIN people p
     ON p.person_id = bo.person_id
-    AND p.is_current = TRUE
+   AND p.is_current = TRUE
 WHERE b.section_id = $1
   AND b.is_current = TRUE
 ORDER BY
-    b.position_number ASC,
+    COALESCE(b.position_number, '') ASC,
     b.billet_title ASC,
-    bo.is_primary DESC;
+    bo.is_primary DESC,
+    p.display_name ASC;
 `
 
 // sectionDetail represents the metadata for one section detail response.
@@ -81,7 +81,7 @@ type sectionDetail struct {
 // billetOccupant represents a person currently occupying a billet.
 type billetOccupant struct {
 	PersonID     int64  `json:"person_id"`     // Primary key of the person.
-	DisplayName  string `json:"display_name"`  // Person name like "Johnson, Michael R.".
+	DisplayName  string `json:"display_name"`  // Person name.
 	Rank         string `json:"rank"`          // Rank like COL, MAJ, MSG.
 	WorkEmail    string `json:"work_email"`    // Work email address.
 	WorkPhone    string `json:"work_phone"`    // Work phone number.
@@ -113,6 +113,24 @@ type billetResult struct {
 type sectionDetailResponse struct {
 	Section sectionDetail  `json:"section"` // Section metadata.
 	Billets []billetResult `json:"billets"` // Billets in the section with occupants.
+}
+
+// normalizeBilletStatus converts stored database values into API display values.
+func normalizeBilletStatus(rawStatus string) string {
+	var loweredStatus string // Lowercased billet status from the database.
+
+	loweredStatus = strings.ToLower(strings.TrimSpace(rawStatus))
+
+	switch loweredStatus {
+	case "filled":
+		return "Filled"
+	case "vacant":
+		return "Vacant"
+	case "unknown":
+		return "Unknown"
+	default:
+		return "Unknown"
+	}
 }
 
 // handleSectionDetail handles GET /api/sections/{sectionID}.
@@ -179,14 +197,37 @@ func (applicationServer *Server) getSectionDetail(
 	requestContext context.Context,
 	sectionID int64,
 ) (sectionDetail, []billetResult, error) {
-	var detailResult sectionDetail   // Section metadata loaded from the database.
-	var billetRows *sql.Rows         // Result set of billets for the section.
-	var billetMap map[int64]*billetResult // Groups occupants by billet ID.
-	var billetOrder []int64          // Preserves the original query order of billet IDs.
-	var billetResults []billetResult // Final ordered list of billets.
-	var queryError error             // Error returned by the queries.
+	var detailResult sectionDetail          // Section metadata loaded from the database.
+	var billetRows *sql.Rows                // Result set of billets and occupants for the section.
+	var billetResults []billetResult        // Final ordered list of billets.
+	var currentBillet billetResult          // Current billet being assembled from one or more rows.
+	var currentOccupant billetOccupant      // Current occupant built from the scanned row.
+	var currentBilletID int64               // Billet ID from the current row.
+	var currentPositionNumber string        // Position number from the current row.
+	var currentBilletTitle string           // Billet title from the current row.
+	var currentGradeCode string             // Grade code from the current row.
+	var currentRankGroup string             // Rank group from the current row.
+	var currentBranchCode string            // Branch code from the current row.
+	var currentMOSCode string               // MOS code from the current row.
+	var currentAOCCode string               // AOC code from the current row.
+	var currentComponent string             // Component from the current row.
+	var currentUIC string                   // UIC from the current row.
+	var currentParagraphNumber string       // Paragraph number from the current row.
+	var currentLineNumber string            // Line number from the current row.
+	var currentDutyLocation string          // Duty location from the current row.
+	var currentStateCode string             // State code from the current row.
+	var currentOccupancyStatus string       // Billet occupancy status from the current row.
+	var currentPersonID sql.NullInt64       // Person ID from the current row when an occupant exists.
+	var currentOccupantName string          // Occupant display name from the current row.
+	var currentOccupantRank string          // Occupant rank from the current row.
+	var currentOccupantEmail string         // Occupant email from the current row.
+	var currentOccupantPhone string         // Occupant phone from the current row.
+	var currentOccupantOfficeSymbol string  // Occupant office symbol from the current row.
+	var currentOccupantIsPrimary bool       // Primary flag from the current row.
+	var previousBilletID int64              // Previous billet ID processed in the loop.
+	var haveCurrentBillet bool              // Tracks whether a billet is currently being assembled.
+	var queryError error                    // Error returned by the queries.
 
-	// Load section metadata.
 	queryError = applicationServer.db.QueryRowContext(
 		requestContext,
 		sectionDetailQuery,
@@ -204,7 +245,6 @@ func (applicationServer *Server) getSectionDetail(
 		return sectionDetail{}, nil, queryError
 	}
 
-	// Load billets with occupants.
 	billetRows, queryError = applicationServer.db.QueryContext(
 		requestContext,
 		sectionBilletsQuery,
@@ -215,94 +255,80 @@ func (applicationServer *Server) getSectionDetail(
 	}
 	defer billetRows.Close()
 
-	billetMap = make(map[int64]*billetResult)
-	billetOrder = make([]int64, 0)
+	billetResults = make([]billetResult, 0)
+	haveCurrentBillet = false
+	previousBilletID = 0
 
 	for billetRows.Next() {
-		var billetID        int64          // Current billet ID from the row.
-		var positionNumber  string         // Billet position number.
-		var billetTitle     string         // Billet title.
-		var gradeCode       string         // Grade code.
-		var rankGroup       string         // Rank group.
-		var branchCode      string         // Branch code.
-		var mosCode         string         // MOS code.
-		var aocCode         string         // AOC code.
-		var component       string         // Component.
-		var uic             string         // UIC.
-		var paragraphNumber string         // Paragraph number.
-		var lineNumber      string         // Line number.
-		var dutyLocation    string         // Duty location.
-		var stateCode       string         // State code.
-		var personID        sql.NullInt64  // Person ID, NULL if no occupant.
-		var occupantName    sql.NullString // Occupant display name.
-		var occupantRank    sql.NullString // Occupant rank.
-		var occupantEmail   sql.NullString // Occupant work email.
-		var occupantPhone   sql.NullString // Occupant work phone.
-		var occupantOffice  sql.NullString // Occupant office symbol.
-		var occupantPrimary sql.NullBool   // Whether this is the primary occupant.
-
 		queryError = billetRows.Scan(
-			&billetID,
-			&positionNumber,
-			&billetTitle,
-			&gradeCode,
-			&rankGroup,
-			&branchCode,
-			&mosCode,
-			&aocCode,
-			&component,
-			&uic,
-			&paragraphNumber,
-			&lineNumber,
-			&dutyLocation,
-			&stateCode,
-			&personID,
-			&occupantName,
-			&occupantRank,
-			&occupantEmail,
-			&occupantPhone,
-			&occupantOffice,
-			&occupantPrimary,
+			&currentBilletID,
+			&currentPositionNumber,
+			&currentBilletTitle,
+			&currentGradeCode,
+			&currentRankGroup,
+			&currentBranchCode,
+			&currentMOSCode,
+			&currentAOCCode,
+			&currentComponent,
+			&currentUIC,
+			&currentParagraphNumber,
+			&currentLineNumber,
+			&currentDutyLocation,
+			&currentStateCode,
+			&currentOccupancyStatus,
+			&currentPersonID,
+			&currentOccupantName,
+			&currentOccupantRank,
+			&currentOccupantEmail,
+			&currentOccupantPhone,
+			&currentOccupantOfficeSymbol,
+			&currentOccupantIsPrimary,
 		)
 		if queryError != nil {
 			return sectionDetail{}, nil, queryError
 		}
 
-		// First time seeing this billet — create the entry.
-		if billetMap[billetID] == nil {
-			billetMap[billetID] = &billetResult{
-				BilletID:        billetID,
-				PositionNumber:  positionNumber,
-				BilletTitle:     billetTitle,
-				GradeCode:       gradeCode,
-				RankGroup:       rankGroup,
-				BranchCode:      branchCode,
-				MOSCode:         mosCode,
-				AOCCode:         aocCode,
-				Component:       component,
-				UIC:             uic,
-				ParagraphNumber: paragraphNumber,
-				LineNumber:      lineNumber,
-				DutyLocation:    dutyLocation,
-				StateCode:       stateCode,
-				Status:          "Vacant",
+		if !haveCurrentBillet || previousBilletID != currentBilletID {
+			if haveCurrentBillet {
+				billetResults = append(billetResults, currentBillet)
+			}
+
+			currentBillet = billetResult{
+				BilletID:        currentBilletID,
+				PositionNumber:  currentPositionNumber,
+				BilletTitle:     currentBilletTitle,
+				GradeCode:       currentGradeCode,
+				RankGroup:       currentRankGroup,
+				BranchCode:      currentBranchCode,
+				MOSCode:         currentMOSCode,
+				AOCCode:         currentAOCCode,
+				Component:       currentComponent,
+				UIC:             currentUIC,
+				ParagraphNumber: currentParagraphNumber,
+				LineNumber:      currentLineNumber,
+				DutyLocation:    currentDutyLocation,
+				StateCode:       currentStateCode,
+				Status:          normalizeBilletStatus(currentOccupancyStatus),
 				Occupants:       make([]billetOccupant, 0),
 			}
-			billetOrder = append(billetOrder, billetID)
+
+			haveCurrentBillet = true
+			previousBilletID = currentBilletID
 		}
 
-		// If there is an occupant on this row, attach them.
-		if personID.Valid {
-			billetMap[billetID].Status = "Filled"
-			billetMap[billetID].Occupants = append(billetMap[billetID].Occupants, billetOccupant{
-				PersonID:     personID.Int64,
-				DisplayName:  occupantName.String,
-				Rank:         occupantRank.String,
-				WorkEmail:    occupantEmail.String,
-				WorkPhone:    occupantPhone.String,
-				OfficeSymbol: occupantOffice.String,
-				IsPrimary:    occupantPrimary.Bool,
-			})
+		if currentPersonID.Valid {
+			currentOccupant = billetOccupant{
+				PersonID:     currentPersonID.Int64,
+				DisplayName:  currentOccupantName,
+				Rank:         currentOccupantRank,
+				WorkEmail:    currentOccupantEmail,
+				WorkPhone:    currentOccupantPhone,
+				OfficeSymbol: currentOccupantOfficeSymbol,
+				IsPrimary:    currentOccupantIsPrimary,
+			}
+
+			currentBillet.Occupants = append(currentBillet.Occupants, currentOccupant)
+			currentBillet.Status = "Filled"
 		}
 	}
 
@@ -311,10 +337,8 @@ func (applicationServer *Server) getSectionDetail(
 		return sectionDetail{}, nil, queryError
 	}
 
-	// Build the final ordered slice from the map.
-	billetResults = make([]billetResult, 0, len(billetOrder))
-	for _, id := range billetOrder {
-		billetResults = append(billetResults, *billetMap[id])
+	if haveCurrentBillet {
+		billetResults = append(billetResults, currentBillet)
 	}
 
 	return detailResult, billetResults, nil
