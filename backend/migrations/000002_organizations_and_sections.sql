@@ -1,3 +1,4 @@
+-- backend/migrations/000002_organizations_and_sections.sql
 -- Enable trigram extension for fuzzy search.
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 

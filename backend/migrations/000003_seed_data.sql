@@ -1,3 +1,4 @@
+-- backend/migrations/000003_seed_data.sql
 -- Seed organizations
 INSERT INTO organizations (organization_id, organization_name, normalized_name, short_name, component, echelon, uic, location_name, state_code)
 VALUES
