@@ -17,7 +17,7 @@ type Server struct {
 // New creates a configured application server with database access.
 func New(applicationAddress string, database *sql.DB) *Server {
 	var requestMultiplexer *http.ServeMux // Routes incoming requests to the correct handler by method and path.
-	var applicationServer  *Server        // Application server with shared dependencies and HTTP server.
+	var applicationServer *Server         // Application server with shared dependencies and HTTP server.
 	var standardHTTPServer *http.Server   // Standard library HTTP server configured with routing and timeouts.
 
 	requestMultiplexer = http.NewServeMux()
@@ -66,7 +66,7 @@ func (applicationServer *Server) handleHealth(responseWriter http.ResponseWriter
 // handleReadyz responds with the application readiness status.
 // Used as a Kubernetes readiness probe. Checks database connectivity.
 func (applicationServer *Server) handleReadyz(responseWriter http.ResponseWriter, request *http.Request) {
-	var pingError      error  // Error returned if the database is unreachable.
+	var pingError error       // Error returned if the database is unreachable.
 	var databaseStatus string // Current database connectivity status.
 
 	pingError = applicationServer.db.PingContext(request.Context())

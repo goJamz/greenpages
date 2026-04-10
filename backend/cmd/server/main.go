@@ -16,12 +16,12 @@ import (
 
 func main() {
 	var applicationAddress string                // Network address the HTTP server listens on.
-	var databaseURL        string                // PostgreSQL connection string.
-	var database           *sql.DB               // Database handle shared across all handlers.
-	var applicationServer  *internalserver.Server // Application server with routes and shared dependencies.
-	var startupContext     context.Context        // Timeout context for initial database connectivity check.
-	var cancelStartup      context.CancelFunc     // Cancels the startup timeout context.
-	var startupError       error                  // Error returned during startup or server run.
+	var databaseURL string                       // PostgreSQL connection string.
+	var database *sql.DB                         // Database handle shared across all handlers.
+	var applicationServer *internalserver.Server // Application server with routes and shared dependencies.
+	var startupContext context.Context           // Timeout context for initial database connectivity check.
+	var cancelStartup context.CancelFunc         // Cancels the startup timeout context.
+	var startupError error                       // Error returned during startup or server run.
 
 	applicationAddress = loadApplicationAddress()
 
@@ -73,13 +73,13 @@ func loadApplicationAddress() string {
 // DATABASE_URL override first. If not set, it assembles one from individual
 // DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, and DB_SSL_MODE variables.
 func loadDatabaseURL() (string, error) {
-	var databaseURL      string // Full connection string, either from env or assembled.
-	var databaseHost     string // PostgreSQL hostname.
-	var databasePort     string // PostgreSQL port.
-	var databaseUser     string // PostgreSQL username.
+	var databaseURL string      // Full connection string, either from env or assembled.
+	var databaseHost string     // PostgreSQL hostname.
+	var databasePort string     // PostgreSQL port.
+	var databaseUser string     // PostgreSQL username.
 	var databasePassword string // PostgreSQL password.
-	var databaseName     string // PostgreSQL database name.
-	var databaseSSLMode  string // PostgreSQL SSL mode.
+	var databaseName string     // PostgreSQL database name.
+	var databaseSSLMode string  // PostgreSQL SSL mode.
 
 	// Prefer a single connection string if provided.
 	databaseURL = os.Getenv("DATABASE_URL")

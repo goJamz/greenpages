@@ -92,7 +92,7 @@ type sectionSearchResponse struct {
 // normalizeSearchInput strips whitespace, lowercases, and removes non-alphanumeric
 // characters so that "G-6", "G 6", and "g6" all produce the same search term.
 func normalizeSearchInput(rawInput string) string {
-	var lowered string // Input converted to lowercase.
+	var lowered string    // Input converted to lowercase.
 	var normalized string // Input reduced to alphanumeric characters only.
 
 	lowered = strings.ToLower(strings.TrimSpace(rawInput))
@@ -103,10 +103,10 @@ func normalizeSearchInput(rawInput string) string {
 
 // handleSectionsSearch handles GET /api/sections/search?q=...
 func (applicationServer *Server) handleSectionsSearch(responseWriter http.ResponseWriter, request *http.Request) {
-	var rawQuery string // Raw q parameter from the URL.
-	var normalizedQuery string // Cleaned search term for database matching.
-	var results []sectionSearchResult // Results from the database search.
-	var searchError error // Error returned by the search function.
+	var rawQuery string                // Raw q parameter from the URL.
+	var normalizedQuery string         // Cleaned search term for database matching.
+	var results []sectionSearchResult  // Results from the database search.
+	var searchError error              // Error returned by the search function.
 	var response sectionSearchResponse // JSON response payload.
 
 	responseWriter.Header().Set("Content-Type", "application/json")
@@ -143,10 +143,10 @@ func (applicationServer *Server) handleSectionsSearch(responseWriter http.Respon
 
 // searchSections queries the database for sections matching the normalized search term.
 func (applicationServer *Server) searchSections(requestContext context.Context, normalizedQuery string) ([]sectionSearchResult, error) {
-	var rows *sql.Rows // Result set from the database query.
+	var rows *sql.Rows                // Result set from the database query.
 	var results []sectionSearchResult // Collected search results.
-	var current sectionSearchResult // Current row being scanned.
-	var queryError error // Error returned by the query or row scan.
+	var current sectionSearchResult   // Current row being scanned.
+	var queryError error              // Error returned by the query or row scan.
 
 	rows, queryError = applicationServer.db.QueryContext(requestContext, sectionsSearchQuery, normalizedQuery)
 	if queryError != nil {
