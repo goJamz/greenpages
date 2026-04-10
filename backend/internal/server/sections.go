@@ -29,6 +29,7 @@ WITH searchable AS (
         regexp_replace(LOWER(o.organization_name),           '[^a-z0-9]+', '', 'g') AS norm_org,
         regexp_replace(LOWER(COALESCE(o.short_name, '')),    '[^a-z0-9]+', '', 'g') AS norm_org_short,
         regexp_replace(LOWER(s.section_code),                '[^a-z0-9]+', '', 'g') AS norm_code,
+        regexp_replace(LOWER(s.section_name),                '[^a-z0-9]+', '', 'g') AS norm_name,
         regexp_replace(LOWER(COALESCE(s.display_name, '')),  '[^a-z0-9]+', '', 'g') AS norm_display
     FROM sections s
     INNER JOIN organizations o ON o.organization_id = s.organization_id
@@ -45,23 +46,25 @@ SELECT
     display_name
 FROM searchable
 WHERE
-    norm_code    LIKE '%' || $1 || '%'
+    norm_code LIKE '%' || $1 || '%'
+    OR norm_name LIKE '%' || $1 || '%'
     OR norm_display LIKE '%' || $1 || '%'
-    OR norm_org     LIKE '%' || $1 || '%'
+    OR norm_org LIKE '%' || $1 || '%'
     OR norm_org_short LIKE '%' || $1 || '%'
-    OR (norm_org       || norm_code)    LIKE '%' || $1 || '%'
-    OR (norm_org_short || norm_code)    LIKE '%' || $1 || '%'
-    OR (norm_org       || norm_display) LIKE '%' || $1 || '%'
+    OR (norm_org || norm_code) LIKE '%' || $1 || '%'
+    OR (norm_org_short || norm_code) LIKE '%' || $1 || '%'
+    OR (norm_org || norm_display) LIKE '%' || $1 || '%'
     OR (norm_org_short || norm_display) LIKE '%' || $1 || '%'
 ORDER BY
     CASE
-        WHEN norm_code = $1                         THEN 1
-        WHEN norm_display = $1                      THEN 2
-        WHEN (norm_org || norm_code) = $1           THEN 3
-        WHEN (norm_org_short || norm_code) = $1     THEN 4
-        WHEN (norm_org || norm_display) = $1        THEN 5
-        WHEN (norm_org_short || norm_display) = $1  THEN 6
-        ELSE 7
+        WHEN norm_code = $1 THEN 1
+        WHEN norm_name = $1 THEN 2
+        WHEN norm_display = $1 THEN 3
+        WHEN (norm_org || norm_code) = $1 THEN 4
+        WHEN (norm_org_short || norm_code) = $1 THEN 5
+        WHEN (norm_org || norm_display) = $1 THEN 6
+        WHEN (norm_org_short || norm_display) = $1 THEN 7
+        ELSE 8
     END,
     organization_name ASC,
     display_name ASC
@@ -74,22 +77,22 @@ type sectionSearchResult struct {
 	OrganizationID        int64  `json:"organization_id"`         // Parent organization primary key.
 	OrganizationName      string `json:"organization_name"`       // Parent organization name.
 	OrganizationShortName string `json:"organization_short_name"` // Short name like "18 ABN Corps".
-	SectionCode           string `json:"section_code"`            // Short code like G6, S3.
-	SectionName           string `json:"section_name"`            // Section name like G-6.
-	DisplayName           string `json:"display_name"`            // Full display name like "XVIII Airborne Corps G-6".
+	SectionCode           string `json:"section_code"`            // Section code like "G-6" or "S-3".
+	SectionName           string `json:"section_name"`            // Human-readable section name like "Signal".
+	DisplayName           string `json:"display_name"`            // Section display label like "G-6".
 }
 
 // sectionSearchResponse wraps the search results with the original query and count.
 type sectionSearchResponse struct {
-	Query   string                 `json:"query"`   // Original search input from the user.
-	Count   int                    `json:"count"`   // Number of results returned.
-	Results []sectionSearchResult  `json:"results"` // Matching sections.
+	Query   string                `json:"query"`   // Original search input from the user.
+	Count   int                   `json:"count"`   // Number of results returned.
+	Results []sectionSearchResult `json:"results"` // Matching sections.
 }
 
 // normalizeSearchInput strips whitespace, lowercases, and removes non-alphanumeric
 // characters so that "G-6", "G 6", and "g6" all produce the same search term.
 func normalizeSearchInput(rawInput string) string {
-	var lowered    string // Input converted to lowercase.
+	var lowered string // Input converted to lowercase.
 	var normalized string // Input reduced to alphanumeric characters only.
 
 	lowered = strings.ToLower(strings.TrimSpace(rawInput))
@@ -100,11 +103,11 @@ func normalizeSearchInput(rawInput string) string {
 
 // handleSectionsSearch handles GET /api/sections/search?q=...
 func (applicationServer *Server) handleSectionsSearch(responseWriter http.ResponseWriter, request *http.Request) {
-	var rawQuery        string                 // Raw q parameter from the URL.
-	var normalizedQuery string                 // Cleaned search term for database matching.
-	var results         []sectionSearchResult   // Results from the database search.
-	var searchError     error                  // Error returned by the search function.
-	var response        sectionSearchResponse  // JSON response payload.
+	var rawQuery string // Raw q parameter from the URL.
+	var normalizedQuery string // Cleaned search term for database matching.
+	var results []sectionSearchResult // Results from the database search.
+	var searchError error // Error returned by the search function.
+	var response sectionSearchResponse // JSON response payload.
 
 	responseWriter.Header().Set("Content-Type", "application/json")
 
@@ -140,10 +143,10 @@ func (applicationServer *Server) handleSectionsSearch(responseWriter http.Respon
 
 // searchSections queries the database for sections matching the normalized search term.
 func (applicationServer *Server) searchSections(requestContext context.Context, normalizedQuery string) ([]sectionSearchResult, error) {
-	var rows        *sql.Rows              // Result set from the database query.
-	var results     []sectionSearchResult   // Collected search results.
-	var current     sectionSearchResult     // Current row being scanned.
-	var queryError  error                   // Error returned by the query or row scan.
+	var rows *sql.Rows // Result set from the database query.
+	var results []sectionSearchResult // Collected search results.
+	var current sectionSearchResult // Current row being scanned.
+	var queryError error // Error returned by the query or row scan.
 
 	rows, queryError = applicationServer.db.QueryContext(requestContext, sectionsSearchQuery, normalizedQuery)
 	if queryError != nil {
@@ -154,6 +157,8 @@ func (applicationServer *Server) searchSections(requestContext context.Context, 
 	results = make([]sectionSearchResult, 0)
 
 	for rows.Next() {
+		current = sectionSearchResult{}
+
 		queryError = rows.Scan(
 			&current.SectionID,
 			&current.OrganizationID,
