@@ -246,6 +246,8 @@ func (applicationServer *Server) searchPeople(requestContext context.Context, no
 			return nil, queryError
 		}
 
+        current.BilletStatus = normalizeBilletStatus(current.BilletStatus)
+
 		results = append(results, current)
 	}
 
