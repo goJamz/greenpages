@@ -50,6 +50,7 @@ func (applicationServer *Server) Start() error {
 func (applicationServer *Server) registerRoutes(requestMultiplexer *http.ServeMux) {
 	requestMultiplexer.HandleFunc("GET /api/health", applicationServer.handleHealth)
 	requestMultiplexer.HandleFunc("GET /api/readyz", applicationServer.handleReadyz)
+	requestMultiplexer.HandleFunc("GET /api/sections/search", applicationServer.handleSectionsSearch)
 }
 
 // handleHealth responds with the application process status.
@@ -73,7 +74,7 @@ func (applicationServer *Server) handleReadyz(responseWriter http.ResponseWriter
 		databaseStatus = "unreachable"
 		responseWriter.Header().Set("Content-Type", "application/json")
 		responseWriter.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(responseWriter).Encode(map[string]string{
+		_ = json.NewEncoder(responseWriter).Encode(map[string]string{
 			"status":   "not ready",
 			"database": databaseStatus,
 		})
@@ -82,7 +83,7 @@ func (applicationServer *Server) handleReadyz(responseWriter http.ResponseWriter
 
 	databaseStatus = "ok"
 	responseWriter.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(responseWriter).Encode(map[string]string{
+	_ = json.NewEncoder(responseWriter).Encode(map[string]string{
 		"status":   "ready",
 		"database": databaseStatus,
 	})
