@@ -50,7 +50,7 @@ func (applicationServer *Server) Start() error {
 func (applicationServer *Server) registerRoutes(requestMultiplexer *http.ServeMux) {
 	requestMultiplexer.HandleFunc("GET /api/health", applicationServer.handleHealth)
 	requestMultiplexer.HandleFunc("GET /api/readyz", applicationServer.handleReadyz)
-	requestMultiplexer.HandleFunc("GET /api/sections/search", applicationServer.handleSectionSearch)
+	requestMultiplexer.HandleFunc("GET /api/sections/search", applicationServer.handleSectionsSearch)
 }
 
 // handleHealth responds with the application process status.
