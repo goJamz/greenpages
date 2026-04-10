@@ -9,201 +9,171 @@ import (
 	"strings"
 )
 
-var alphaNumericCleanupPattern = regexp.MustCompile(`[^a-z0-9]+`)
+// alphaNumericPattern strips everything except lowercase letters and digits.
+// Used to normalize search input so "G-6", "G 6", and "g6" all match the same way.
+var alphaNumericPattern = regexp.MustCompile(`[^a-z0-9]+`)
 
+// sectionsSearchQuery finds sections by matching the normalized search input
+// against section codes, section names, display names, and organization names.
+// Concatenated fields allow queries like "XVIII Airborne Corps G6" to match.
 const sectionsSearchQuery = `
-WITH searchable_sections AS (
+WITH searchable AS (
     SELECT
-        sections.section_id,
-        sections.organization_id,
-        organizations.organization_name,
-        COALESCE(organizations.short_name, '') AS organization_short_name,
-        sections.section_code,
-        sections.section_name,
-        sections.display_name,
-        trim(both ' ' from organizations.organization_name || ' ' || sections.display_name) AS full_display_name,
-        regexp_replace(lower(organizations.organization_name), '[^a-z0-9]+', '', 'g') AS normalized_organization_name,
-        regexp_replace(lower(COALESCE(organizations.short_name, '')), '[^a-z0-9]+', '', 'g') AS normalized_organization_short_name,
-        regexp_replace(lower(sections.section_code), '[^a-z0-9]+', '', 'g') AS normalized_section_code,
-        regexp_replace(lower(sections.section_name), '[^a-z0-9]+', '', 'g') AS normalized_section_name,
-        regexp_replace(lower(sections.display_name), '[^a-z0-9]+', '', 'g') AS normalized_display_name
-    FROM sections
-    INNER JOIN organizations
-        ON organizations.organization_id = sections.organization_id
-    WHERE organizations.is_current = TRUE
-      AND sections.is_current = TRUE
+        s.section_id,
+        s.organization_id,
+        o.organization_name,
+        COALESCE(o.short_name, '')                AS organization_short_name,
+        s.section_code,
+        s.section_name,
+        s.display_name,
+        regexp_replace(LOWER(o.organization_name),           '[^a-z0-9]+', '', 'g') AS norm_org,
+        regexp_replace(LOWER(COALESCE(o.short_name, '')),    '[^a-z0-9]+', '', 'g') AS norm_org_short,
+        regexp_replace(LOWER(s.section_code),                '[^a-z0-9]+', '', 'g') AS norm_code,
+        regexp_replace(LOWER(COALESCE(s.display_name, '')),  '[^a-z0-9]+', '', 'g') AS norm_display
+    FROM sections s
+    INNER JOIN organizations o ON o.organization_id = s.organization_id
+    WHERE o.is_current = TRUE
+      AND s.is_current = TRUE
 )
 SELECT
-    searchable_sections.section_id,
-    searchable_sections.organization_id,
-    searchable_sections.organization_name,
-    searchable_sections.organization_short_name,
-    searchable_sections.section_code,
-    searchable_sections.section_name,
-    searchable_sections.display_name,
-    searchable_sections.full_display_name
-FROM searchable_sections
+    section_id,
+    organization_id,
+    organization_name,
+    organization_short_name,
+    section_code,
+    section_name,
+    display_name
+FROM searchable
 WHERE
-    searchable_sections.normalized_section_code LIKE '%' || $1 || '%'
-    OR searchable_sections.normalized_section_name LIKE '%' || $1 || '%'
-    OR searchable_sections.normalized_display_name LIKE '%' || $1 || '%'
-    OR searchable_sections.normalized_organization_name LIKE '%' || $1 || '%'
-    OR searchable_sections.normalized_organization_short_name LIKE '%' || $1 || '%'
-    OR (searchable_sections.normalized_organization_name || searchable_sections.normalized_display_name) LIKE '%' || $1 || '%'
-    OR (searchable_sections.normalized_organization_short_name || searchable_sections.normalized_display_name) LIKE '%' || $1 || '%'
-    OR (searchable_sections.normalized_organization_name || searchable_sections.normalized_section_code) LIKE '%' || $1 || '%'
-    OR (searchable_sections.normalized_organization_short_name || searchable_sections.normalized_section_code) LIKE '%' || $1 || '%'
+    norm_code    LIKE '%' || $1 || '%'
+    OR norm_display LIKE '%' || $1 || '%'
+    OR norm_org     LIKE '%' || $1 || '%'
+    OR norm_org_short LIKE '%' || $1 || '%'
+    OR (norm_org       || norm_code)    LIKE '%' || $1 || '%'
+    OR (norm_org_short || norm_code)    LIKE '%' || $1 || '%'
+    OR (norm_org       || norm_display) LIKE '%' || $1 || '%'
+    OR (norm_org_short || norm_display) LIKE '%' || $1 || '%'
 ORDER BY
     CASE
-        WHEN (searchable_sections.normalized_organization_name || searchable_sections.normalized_display_name) = $1 THEN 1
-        WHEN (searchable_sections.normalized_organization_short_name || searchable_sections.normalized_display_name) = $1 THEN 2
-        WHEN (searchable_sections.normalized_organization_name || searchable_sections.normalized_section_code) = $1 THEN 3
-        WHEN (searchable_sections.normalized_organization_short_name || searchable_sections.normalized_section_code) = $1 THEN 4
-        WHEN searchable_sections.normalized_display_name = $1 THEN 5
-        WHEN searchable_sections.normalized_section_code = $1 THEN 6
+        WHEN norm_code = $1                         THEN 1
+        WHEN norm_display = $1                      THEN 2
+        WHEN (norm_org || norm_code) = $1           THEN 3
+        WHEN (norm_org_short || norm_code) = $1     THEN 4
+        WHEN (norm_org || norm_display) = $1        THEN 5
+        WHEN (norm_org_short || norm_display) = $1  THEN 6
         ELSE 7
     END,
-    searchable_sections.organization_name ASC,
-    searchable_sections.display_name ASC
+    organization_name ASC,
+    display_name ASC
 LIMIT 25;
 `
 
-type sectionSearchRecord struct {
-	SectionID             int64
-	OrganizationID        int64
-	OrganizationName      string
-	OrganizationShortName string
-	SectionCode           string
-	SectionName           string
-	DisplayName           string
-	FullDisplayName       string
+// sectionSearchResult represents a single section returned by the search endpoint.
+type sectionSearchResult struct {
+	SectionID             int64  `json:"section_id"`              // Primary key of the section.
+	OrganizationID        int64  `json:"organization_id"`         // Parent organization primary key.
+	OrganizationName      string `json:"organization_name"`       // Parent organization name.
+	OrganizationShortName string `json:"organization_short_name"` // Short name like "18 ABN Corps".
+	SectionCode           string `json:"section_code"`            // Short code like G6, S3.
+	SectionName           string `json:"section_name"`            // Section name like G-6.
+	DisplayName           string `json:"display_name"`            // Full display name like "XVIII Airborne Corps G-6".
 }
 
-type SectionSearchResult struct {
-	SectionID             int64  `json:"section_id"`
-	OrganizationID        int64  `json:"organization_id"`
-	OrganizationName      string `json:"organization_name"`
-	OrganizationShortName string `json:"organization_short_name"`
-	SectionCode           string `json:"section_code"`
-	SectionName           string `json:"section_name"`
-	DisplayName           string `json:"display_name"`
-	FullDisplayName       string `json:"full_display_name"`
+// sectionSearchResponse wraps the search results with the original query and count.
+type sectionSearchResponse struct {
+	Query   string                 `json:"query"`   // Original search input from the user.
+	Count   int                    `json:"count"`   // Number of results returned.
+	Results []sectionSearchResult  `json:"results"` // Matching sections.
 }
 
-type SectionSearchResponse struct {
-	Query   string                `json:"query"`
-	Count   int                   `json:"count"`
-	Results []SectionSearchResult `json:"results"`
-}
-
+// normalizeSearchInput strips whitespace, lowercases, and removes non-alphanumeric
+// characters so that "G-6", "G 6", and "g6" all produce the same search term.
 func normalizeSearchInput(rawInput string) string {
-	var trimmedInput string // User input after trimming leading and trailing whitespace.
-	var lowerCasedInput string // Search input converted to lowercase for consistent matching.
-	var normalizedInput string // Search input reduced to alphanumeric characters for forgiving search behavior.
+	var lowered    string // Input converted to lowercase.
+	var normalized string // Input reduced to alphanumeric characters only.
 
-	trimmedInput = strings.TrimSpace(rawInput)
-	lowerCasedInput = strings.ToLower(trimmedInput)
-	normalizedInput = alphaNumericCleanupPattern.ReplaceAllString(lowerCasedInput, "")
+	lowered = strings.ToLower(strings.TrimSpace(rawInput))
+	normalized = alphaNumericPattern.ReplaceAllString(lowered, "")
 
-	return normalizedInput
+	return normalized
 }
 
-func (applicationServer *Server) handleSectionSearch(responseWriter http.ResponseWriter, request *http.Request) {
-	var rawSearchQuery string // Raw q parameter received from the incoming request.
-	var normalizedSearchQuery string // Normalized q value used for database matching.
-	var sectionSearchResults []SectionSearchResult // Results returned from the database-backed search.
-	var sectionSearchError error // Error returned while executing the section search.
-	var responsePayload SectionSearchResponse // Success response payload encoded as JSON.
+// handleSectionsSearch handles GET /api/sections/search?q=...
+func (applicationServer *Server) handleSectionsSearch(responseWriter http.ResponseWriter, request *http.Request) {
+	var rawQuery        string                 // Raw q parameter from the URL.
+	var normalizedQuery string                 // Cleaned search term for database matching.
+	var results         []sectionSearchResult   // Results from the database search.
+	var searchError     error                  // Error returned by the search function.
+	var response        sectionSearchResponse  // JSON response payload.
 
 	responseWriter.Header().Set("Content-Type", "application/json")
 
-	rawSearchQuery = request.URL.Query().Get("q")
-	normalizedSearchQuery = normalizeSearchInput(rawSearchQuery)
+	rawQuery = request.URL.Query().Get("q")
+	normalizedQuery = normalizeSearchInput(rawQuery)
 
-	if normalizedSearchQuery == "" {
+	if normalizedQuery == "" {
 		responseWriter.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(responseWriter).Encode(map[string]string{
-			"error": "query parameter q is required",
+			"error": "q parameter is required",
 		})
 		return
 	}
 
-	sectionSearchResults, sectionSearchError = applicationServer.searchSections(request.Context(), normalizedSearchQuery)
-	if sectionSearchError != nil {
+	results, searchError = applicationServer.searchSections(request.Context(), normalizedQuery)
+	if searchError != nil {
 		responseWriter.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(responseWriter).Encode(map[string]string{
-			"error": "failed to search sections",
+			"error": "search query failed",
 		})
 		return
 	}
 
-	responsePayload = SectionSearchResponse{
-		Query:   rawSearchQuery,
-		Count:   len(sectionSearchResults),
-		Results: sectionSearchResults,
+	response = sectionSearchResponse{
+		Query:   rawQuery,
+		Count:   len(results),
+		Results: results,
 	}
 
 	responseWriter.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(responseWriter).Encode(responsePayload)
+	_ = json.NewEncoder(responseWriter).Encode(response)
 }
 
-func (applicationServer *Server) searchSections(
-	requestContext context.Context,
-	normalizedSearchQuery string,
-) ([]SectionSearchResult, error) {
-	var queryRows *sql.Rows // Database result set returned for the section search query.
-	var currentSectionRecord sectionSearchRecord // Single scanned database row from the current iteration.
-	var currentSectionResult SectionSearchResult // API response item built from the scanned database row.
-	var sectionSearchResults []SectionSearchResult // Full set of API response items collected from the query.
-	var sectionSearchError error // Error returned by the database query or row scanning.
+// searchSections queries the database for sections matching the normalized search term.
+func (applicationServer *Server) searchSections(requestContext context.Context, normalizedQuery string) ([]sectionSearchResult, error) {
+	var rows        *sql.Rows              // Result set from the database query.
+	var results     []sectionSearchResult   // Collected search results.
+	var current     sectionSearchResult     // Current row being scanned.
+	var queryError  error                   // Error returned by the query or row scan.
 
-	queryRows, sectionSearchError = applicationServer.db.QueryContext(
-		requestContext,
-		sectionsSearchQuery,
-		normalizedSearchQuery,
-	)
-	if sectionSearchError != nil {
-		return nil, sectionSearchError
+	rows, queryError = applicationServer.db.QueryContext(requestContext, sectionsSearchQuery, normalizedQuery)
+	if queryError != nil {
+		return nil, queryError
 	}
-	defer queryRows.Close()
+	defer rows.Close()
 
-	sectionSearchResults = make([]SectionSearchResult, 0)
+	results = make([]sectionSearchResult, 0)
 
-	for queryRows.Next() {
-		currentSectionRecord = sectionSearchRecord{}
-
-		sectionSearchError = queryRows.Scan(
-			&currentSectionRecord.SectionID,
-			&currentSectionRecord.OrganizationID,
-			&currentSectionRecord.OrganizationName,
-			&currentSectionRecord.OrganizationShortName,
-			&currentSectionRecord.SectionCode,
-			&currentSectionRecord.SectionName,
-			&currentSectionRecord.DisplayName,
-			&currentSectionRecord.FullDisplayName,
+	for rows.Next() {
+		queryError = rows.Scan(
+			&current.SectionID,
+			&current.OrganizationID,
+			&current.OrganizationName,
+			&current.OrganizationShortName,
+			&current.SectionCode,
+			&current.SectionName,
+			&current.DisplayName,
 		)
-		if sectionSearchError != nil {
-			return nil, sectionSearchError
+		if queryError != nil {
+			return nil, queryError
 		}
 
-		currentSectionResult = SectionSearchResult{
-			SectionID:             currentSectionRecord.SectionID,
-			OrganizationID:        currentSectionRecord.OrganizationID,
-			OrganizationName:      currentSectionRecord.OrganizationName,
-			OrganizationShortName: currentSectionRecord.OrganizationShortName,
-			SectionCode:           currentSectionRecord.SectionCode,
-			SectionName:           currentSectionRecord.SectionName,
-			DisplayName:           currentSectionRecord.DisplayName,
-			FullDisplayName:       currentSectionRecord.FullDisplayName,
-		}
-
-		sectionSearchResults = append(sectionSearchResults, currentSectionResult)
+		results = append(results, current)
 	}
 
-	sectionSearchError = queryRows.Err()
-	if sectionSearchError != nil {
-		return nil, sectionSearchError
+	queryError = rows.Err()
+	if queryError != nil {
+		return nil, queryError
 	}
 
-	return sectionSearchResults, nil
+	return results, nil
 }
