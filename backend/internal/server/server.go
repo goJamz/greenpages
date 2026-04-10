@@ -83,6 +83,7 @@ func (applicationServer *Server) handleReadyz(responseWriter http.ResponseWriter
 
 	databaseStatus = "ok"
 	responseWriter.Header().Set("Content-Type", "application/json")
+	responseWriter.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(responseWriter).Encode(map[string]string{
 		"status":   "ready",
 		"database": databaseStatus,
