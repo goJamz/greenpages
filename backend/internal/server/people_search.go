@@ -7,9 +7,10 @@ import (
 	"net/http"
 )
 
-// peopleSearchQuery finds people by normalized person fields first, but it also
-// searches assignment context so users can find someone by combinations like
-// "johnson g6", "netcom harris", or an office symbol.
+// peopleSearchQuery finds people matching the normalized search input
+// against names, office symbols, and assignment context. The query
+// deduplicates by person so one person only appears once in the results
+// even if multiple active assignment rows exist.
 const peopleSearchQuery = `
 WITH searchable AS (
     SELECT
@@ -19,22 +20,23 @@ WITH searchable AS (
         COALESCE(p.work_email, '') AS work_email,
         COALESCE(p.work_phone, '') AS work_phone,
         COALESCE(p.office_symbol, '') AS office_symbol,
-        b.billet_id,
+        COALESCE(b.billet_id, 0) AS billet_id,
         COALESCE(b.billet_title, '') AS billet_title,
+        COALESCE(b.grade_code, '') AS billet_grade_code,
         COALESCE(b.occupancy_status, 'unknown') AS billet_status,
-        s.section_id,
+        COALESCE(s.section_id, 0) AS section_id,
         COALESCE(s.display_name, '') AS section_display_name,
-        o.organization_id,
+        COALESCE(o.organization_id, 0) AS organization_id,
         COALESCE(o.organization_name, '') AS organization_name,
         COALESCE(o.short_name, '') AS organization_short_name,
         COALESCE(bo.is_primary, FALSE) AS is_primary,
-        regexp_replace(LOWER(p.display_name), '[^a-z0-9]+', '', 'g') AS norm_person,
-        regexp_replace(LOWER(COALESCE(p.work_email, '')), '[^a-z0-9]+', '', 'g') AS norm_email,
-        regexp_replace(LOWER(COALESCE(p.office_symbol, '')), '[^a-z0-9]+', '', 'g') AS norm_office_symbol,
+        regexp_replace(LOWER(p.display_name), '[^a-z0-9]+', '', 'g') AS norm_name,
+        regexp_replace(LOWER(COALESCE(p.rank, '')), '[^a-z0-9]+', '', 'g') AS norm_rank,
+        regexp_replace(LOWER(COALESCE(p.office_symbol, '')), '[^a-z0-9]+', '', 'g') AS norm_office,
         regexp_replace(LOWER(COALESCE(b.billet_title, '')), '[^a-z0-9]+', '', 'g') AS norm_billet,
-        regexp_replace(LOWER(COALESCE(s.display_name, '')), '[^a-z0-9]+', '', 'g') AS norm_section,
         regexp_replace(LOWER(COALESCE(o.organization_name, '')), '[^a-z0-9]+', '', 'g') AS norm_org,
-        regexp_replace(LOWER(COALESCE(o.short_name, '')), '[^a-z0-9]+', '', 'g') AS norm_org_short
+        regexp_replace(LOWER(COALESCE(o.short_name, '')), '[^a-z0-9]+', '', 'g') AS norm_org_short,
+        regexp_replace(LOWER(COALESCE(s.display_name, '')), '[^a-z0-9]+', '', 'g') AS norm_section
     FROM people p
     LEFT JOIN billet_occupants bo
         ON bo.person_id = p.person_id
@@ -46,7 +48,7 @@ WITH searchable AS (
         ON s.section_id = b.section_id
        AND s.is_current = TRUE
     LEFT JOIN organizations o
-        ON o.organization_id = s.organization_id
+        ON o.organization_id = b.organization_id
        AND o.is_current = TRUE
     WHERE p.is_current = TRUE
 ),
@@ -60,6 +62,7 @@ matched AS (
         office_symbol,
         billet_id,
         billet_title,
+        billet_grade_code,
         billet_status,
         section_id,
         section_display_name,
@@ -68,27 +71,22 @@ matched AS (
         organization_short_name,
         is_primary,
         CASE
-            WHEN norm_person = $1 THEN 1
-            WHEN norm_email = $1 THEN 2
-            WHEN norm_office_symbol = $1 THEN 3
-            WHEN (norm_org || norm_person) = $1 THEN 4
-            WHEN (norm_org_short || norm_person) = $1 THEN 5
-            WHEN (norm_section || norm_person) = $1 THEN 6
-            WHEN norm_person LIKE $1 || '%' THEN 7
-            ELSE 8
+            WHEN norm_name = $1 THEN 1
+            WHEN norm_name LIKE $1 || '%' THEN 2
+            WHEN norm_office = $1 THEN 3
+            WHEN norm_org || norm_name = $1 THEN 4
+            WHEN norm_org_short || norm_name = $1 THEN 5
+            ELSE 6
         END AS match_rank
     FROM searchable
     WHERE
-        norm_person LIKE '%' || $1 || '%'
-        OR norm_email LIKE '%' || $1 || '%'
-        OR norm_office_symbol LIKE '%' || $1 || '%'
+        norm_name LIKE '%' || $1 || '%'
+        OR norm_rank || norm_name LIKE '%' || $1 || '%'
+        OR norm_office LIKE '%' || $1 || '%'
         OR norm_billet LIKE '%' || $1 || '%'
-        OR norm_section LIKE '%' || $1 || '%'
-        OR norm_org LIKE '%' || $1 || '%'
-        OR norm_org_short LIKE '%' || $1 || '%'
-        OR (norm_org || norm_person) LIKE '%' || $1 || '%'
-        OR (norm_org_short || norm_person) LIKE '%' || $1 || '%'
-        OR (norm_section || norm_person) LIKE '%' || $1 || '%'
+        OR norm_org || norm_name LIKE '%' || $1 || '%'
+        OR norm_org_short || norm_name LIKE '%' || $1 || '%'
+        OR norm_section || norm_name LIKE '%' || $1 || '%'
 ),
 deduped AS (
     SELECT
@@ -100,6 +98,7 @@ deduped AS (
         office_symbol,
         billet_id,
         billet_title,
+        billet_grade_code,
         billet_status,
         section_id,
         section_display_name,
@@ -127,6 +126,7 @@ SELECT
     office_symbol,
     billet_id,
     billet_title,
+    billet_grade_code,
     billet_status,
     section_id,
     section_display_name,
@@ -137,31 +137,30 @@ FROM deduped
 WHERE person_row_rank = 1
 ORDER BY
     match_rank ASC,
-    display_name ASC,
-    organization_name ASC,
-    section_display_name ASC
+    display_name ASC
 LIMIT 25;
 `
 
-// personSearchResult represents one person returned by the people search endpoint.
+// personSearchResult represents a single person returned by the search endpoint.
 type personSearchResult struct {
 	PersonID              int64  `json:"person_id"`               // Primary key of the person.
-	DisplayName           string `json:"display_name"`            // Person display name.
-	Rank                  string `json:"rank"`                    // Military rank like COL or SFC.
-	WorkEmail             string `json:"work_email"`              // Work email address when available.
-	WorkPhone             string `json:"work_phone"`              // Work phone number when available.
-	OfficeSymbol          string `json:"office_symbol"`           // Office symbol when available.
-	BilletID              int64  `json:"billet_id"`               // Current billet ID when available.
-	BilletTitle           string `json:"billet_title"`            // Current billet title when available.
-	BilletStatus          string `json:"billet_status"`           // Filled, Vacant, or Unknown.
-	SectionID             int64  `json:"section_id"`              // Current section ID when available.
-	SectionDisplayName    string `json:"section_display_name"`    // Current section display name when available.
-	OrganizationID        int64  `json:"organization_id"`         // Current organization ID when available.
-	OrganizationName      string `json:"organization_name"`       // Current organization name when available.
-	OrganizationShortName string `json:"organization_short_name"` // Current organization short name when available.
+	DisplayName           string `json:"display_name"`            // Person name like "Johnson, Michael R.".
+	Rank                  string `json:"rank"`                    // Military rank like COL, MAJ.
+	WorkEmail             string `json:"work_email"`              // Work email address.
+	WorkPhone             string `json:"work_phone"`              // Work phone number.
+	OfficeSymbol          string `json:"office_symbol"`           // Office symbol like AFNC-G6.
+	BilletID              int64  `json:"billet_id"`               // Current billet ID, 0 if unassigned.
+	BilletTitle           string `json:"billet_title"`            // Current billet title.
+	BilletGradeCode       string `json:"billet_grade_code"`       // Grade code of the billet.
+	BilletStatus          string `json:"billet_status"`           // Filled, vacant, or unknown.
+	SectionID             int64  `json:"section_id"`              // Section ID, 0 if unassigned.
+	SectionDisplayName    string `json:"section_display_name"`    // Section display name.
+	OrganizationID        int64  `json:"organization_id"`         // Organization ID, 0 if unassigned.
+	OrganizationName      string `json:"organization_name"`       // Organization name.
+	OrganizationShortName string `json:"organization_short_name"` // Organization short name.
 }
 
-// personSearchResponse wraps the people search results with the original query and count.
+// personSearchResponse wraps the search results with the original query and count.
 type personSearchResponse struct {
 	Query   string               `json:"query"`   // Original search input from the user.
 	Count   int                  `json:"count"`   // Number of results returned.
@@ -170,11 +169,11 @@ type personSearchResponse struct {
 
 // handlePeopleSearch handles GET /api/people/search?q=...
 func (applicationServer *Server) handlePeopleSearch(responseWriter http.ResponseWriter, request *http.Request) {
-	var rawQuery string               // Raw q parameter from the URL.
-	var normalizedQuery string        // Normalized search term used for database matching.
-	var results []personSearchResult  // Search results returned from the database.
-	var searchError error             // Error returned while searching for people.
-	var response personSearchResponse // JSON response payload.
+	var rawQuery string                // Raw q parameter from the URL.
+	var normalizedQuery string         // Cleaned search term for database matching.
+	var results []personSearchResult   // Results from the database search.
+	var searchError error              // Error returned by the search function.
+	var response personSearchResponse  // JSON response payload.
 
 	responseWriter.Header().Set("Content-Type", "application/json")
 
@@ -209,23 +208,13 @@ func (applicationServer *Server) handlePeopleSearch(responseWriter http.Response
 }
 
 // searchPeople queries the database for people matching the normalized search term.
-func (applicationServer *Server) searchPeople(
-	requestContext context.Context,
-	normalizedQuery string,
-) ([]personSearchResult, error) {
-	var rows *sql.Rows               // Result set from the database query.
-	var results []personSearchResult // Collected search results.
-	var current personSearchResult   // Current row being scanned.
-	var billetID sql.NullInt64       // Current billet ID when present.
-	var sectionID sql.NullInt64      // Current section ID when present.
-	var organizationID sql.NullInt64 // Current organization ID when present.
-	var queryError error             // Error returned by the query or row scan.
+func (applicationServer *Server) searchPeople(requestContext context.Context, normalizedQuery string) ([]personSearchResult, error) {
+	var rows *sql.Rows                // Result set from the database query.
+	var results []personSearchResult  // Collected search results.
+	var current personSearchResult    // Current row being scanned.
+	var queryError error              // Error returned by the query or row scan.
 
-	rows, queryError = applicationServer.db.QueryContext(
-		requestContext,
-		peopleSearchQuery,
-		normalizedQuery,
-	)
+	rows, queryError = applicationServer.db.QueryContext(requestContext, peopleSearchQuery, normalizedQuery)
 	if queryError != nil {
 		return nil, queryError
 	}
@@ -243,29 +232,18 @@ func (applicationServer *Server) searchPeople(
 			&current.WorkEmail,
 			&current.WorkPhone,
 			&current.OfficeSymbol,
-			&billetID,
+			&current.BilletID,
 			&current.BilletTitle,
+			&current.BilletGradeCode,
 			&current.BilletStatus,
-			&sectionID,
+			&current.SectionID,
 			&current.SectionDisplayName,
-			&organizationID,
+			&current.OrganizationID,
 			&current.OrganizationName,
 			&current.OrganizationShortName,
 		)
 		if queryError != nil {
 			return nil, queryError
-		}
-
-		if billetID.Valid {
-			current.BilletID = billetID.Int64
-		}
-
-		if sectionID.Valid {
-			current.SectionID = sectionID.Int64
-		}
-
-		if organizationID.Valid {
-			current.OrganizationID = organizationID.Int64
 		}
 
 		results = append(results, current)
