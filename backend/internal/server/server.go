@@ -53,6 +53,7 @@ func (applicationServer *Server) registerRoutes(requestMultiplexer *http.ServeMu
 	requestMultiplexer.HandleFunc("GET /api/sections/search", applicationServer.handleSectionsSearch)
 	requestMultiplexer.HandleFunc("GET /api/sections/{sectionID}", applicationServer.handleSectionDetail)
 	requestMultiplexer.HandleFunc("GET /api/people/search", applicationServer.handlePeopleSearch)
+	requestMultiplexer.HandleFunc("GET /api/people/{personID}", applicationServer.handlePersonDetail)
 }
 
 // handleHealth responds with the application process status.
