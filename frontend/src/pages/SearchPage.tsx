@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { searchSections, SectionSearchResult } from '../api/greenpages'
+import { searchSections } from '../api/greenpages'
+import type { SectionSearchResult } from '../api/greenpages'
 
 function SearchPage() {
   const [query, setQuery] = useState('')
