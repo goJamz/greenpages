@@ -217,23 +217,31 @@ function SectionDetailPage() {
                           >
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                               <div>
-                                <p className="font-semibold text-slate-900">
+                                <Link
+                                  to={`/people/${occupantResult.person_id}`}
+                                  className="font-semibold text-slate-900 hover:text-blue-700 hover:underline"
+                                >
+                                  {occupantResult.rank !== '' ? `${occupantResult.rank} ` : ''}
                                   {occupantResult.display_name}
-                                </p>
+                                </Link>
 
-                                <p className="mt-1 text-sm text-slate-600">
-                                  {occupantResult.rank || 'N/A'}
-                                  {occupantResult.office_symbol !== ''
-                                    ? ` · ${occupantResult.office_symbol}`
-                                    : ''}
-                                </p>
+                                {occupantResult.office_symbol !== '' ? (
+                                  <p className="mt-1 text-sm text-slate-600">
+                                    {occupantResult.office_symbol}
+                                  </p>
+                                ) : null}
 
-                                <p className="mt-1 text-sm text-slate-500">
-                                  {occupantResult.work_email || 'No email'}
-                                  {occupantResult.work_phone !== ''
-                                    ? ` · ${occupantResult.work_phone}`
-                                    : ''}
-                                </p>
+                                {occupantResult.work_email !== '' ? (
+                                  <p className="mt-1 text-sm text-slate-500">
+                                    {occupantResult.work_email}
+                                  </p>
+                                ) : null}
+
+                                {occupantResult.work_phone !== '' ? (
+                                  <p className="mt-1 text-sm text-slate-500">
+                                    {occupantResult.work_phone}
+                                  </p>
+                                ) : null}
                               </div>
 
                               {occupantResult.is_primary ? (
