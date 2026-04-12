@@ -1,222 +1,257 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { getSectionDetail } from '../api/greenpages'
-import type { SectionDetailResponse, BilletResult, BilletOccupant } from '../api/greenpages'
+import { getSectionDetail, type SectionDetailResponse } from '../api/greenpages'
 
-function statusBadge(status: string) {
-  let label: string   // Display text for the badge.
-  let classes: string // Tailwind classes for the badge color.
-
-  label = status
+function renderStatusBadge(status: string) {
+  let badgeClasses: string // Tailwind classes used to color the badge.
 
   if (status === 'Filled') {
-    classes = 'bg-green-100 text-green-800'
+    badgeClasses = 'bg-emerald-100 text-emerald-700'
   } else if (status === 'Vacant') {
-    classes = 'bg-yellow-100 text-yellow-800'
+    badgeClasses = 'bg-amber-100 text-amber-700'
   } else {
-    classes = 'bg-slate-200 text-slate-600'
+    badgeClasses = 'bg-slate-200 text-slate-700'
   }
 
   return (
-    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${classes}`}>
-      {label}
+    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${badgeClasses}`}>
+      {status}
     </span>
   )
 }
 
-function OccupantRow({ occupant }: { occupant: BilletOccupant }) {
-  return (
-    <div className="flex flex-col gap-1 rounded-xl border border-slate-200 bg-white p-3">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-semibold text-slate-900">
-          {occupant.rank !== '' ? `${occupant.rank} ` : ''}{occupant.display_name}
-        </span>
-        {occupant.is_primary ? (
-          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-            Primary
-          </span>
-        ) : null}
-      </div>
-
-      {occupant.office_symbol !== '' ? (
-        <p className="text-xs text-slate-500">{occupant.office_symbol}</p>
-      ) : null}
-
-      {occupant.work_email !== '' ? (
-        <p className="text-xs text-slate-500">{occupant.work_email}</p>
-      ) : null}
-
-      {occupant.work_phone !== '' ? (
-        <p className="text-xs text-slate-500">{occupant.work_phone}</p>
-      ) : null}
-    </div>
-  )
-}
-
-function BilletCard({ billet }: { billet: BilletResult }) {
-  let specParts: string[] = [] // Non-empty spec fields assembled for display.
-
-  if (billet.grade_code !== '') specParts.push(billet.grade_code)
-  if (billet.branch_code !== '') specParts.push(billet.branch_code)
-  if (billet.mos_code !== '') specParts.push(billet.mos_code)
-  if (billet.aoc_code !== '') specParts.push(billet.aoc_code)
-  if (billet.component !== '') specParts.push(billet.component)
-
-  return (
-    <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h3 className="text-base font-semibold text-slate-900">{billet.billet_title}</h3>
-
-          {specParts.length > 0 ? (
-            <p className="mt-1 text-sm text-slate-500">{specParts.join(' · ')}</p>
-          ) : null}
-
-          {billet.duty_location !== '' ? (
-            <p className="mt-1 text-xs text-slate-400">
-              {billet.duty_location}{billet.state_code !== '' ? `, ${billet.state_code}` : ''}
-            </p>
-          ) : null}
-
-          {billet.paragraph_number !== '' && billet.line_number !== '' ? (
-            <p className="mt-1 text-xs text-slate-400">
-              Para {billet.paragraph_number} · Line {billet.line_number}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="shrink-0">
-          {statusBadge(billet.status)}
-        </div>
-      </div>
-
-      {billet.occupants.length > 0 ? (
-        <div className="mt-3 grid gap-2">
-          {billet.occupants.map((occupant) => (
-            <OccupantRow key={occupant.person_id} occupant={occupant} />
-          ))}
-        </div>
-      ) : null}
-    </article>
-  )
-}
-
 function SectionDetailPage() {
-  let params = useParams<{ sectionID: string }>()  // URL params containing the section ID.
-
-  let detailValue = useState<SectionDetailResponse | null>(null) // Loaded section detail response.
-  let isLoadingValue = useState(true)                            // Whether the detail request is in flight.
-  let errorMessageValue = useState('')                           // User-visible error message.
-
-  let detail = detailValue[0]
-  let setDetail = detailValue[1]
-
-  let isLoading = isLoadingValue[0]
-  let setIsLoading = isLoadingValue[1]
-
-  let errorMessage = errorMessageValue[0]
-  let setErrorMessage = errorMessageValue[1]
+  const { sectionID } = useParams()
+  const [sectionDetailResponse, setSectionDetailResponse] = useState<SectionDetailResponse | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
 
   useEffect(() => {
-    let sectionID: number  // Parsed numeric section ID from the URL.
+    let isCancelled = false
 
-    if (params.sectionID === undefined) {
-      setErrorMessage('No section ID in URL.')
-      setIsLoading(false)
-      return
-    }
+    async function loadSectionDetail() {
+      let detailResponse
 
-    sectionID = parseInt(params.sectionID, 10)
-
-    if (isNaN(sectionID)) {
-      setErrorMessage('Invalid section ID.')
-      setIsLoading(false)
-      return
-    }
-
-    getSectionDetail(sectionID)
-      .then((response) => {
-        setDetail(response)
-      })
-      .catch((fetchError: unknown) => {
-        if (fetchError instanceof Error) {
-          setErrorMessage(fetchError.message)
-        } else {
-          setErrorMessage('Failed to load section.')
-        }
-      })
-      .finally(() => {
+      if (!sectionID) {
+        setErrorMessage('Section ID is required')
         setIsLoading(false)
-      })
-  }, [params.sectionID])
+        return
+      }
+
+      setIsLoading(true)
+      setErrorMessage('')
+
+      try {
+        detailResponse = await getSectionDetail(sectionID)
+
+        if (!isCancelled) {
+          setSectionDetailResponse(detailResponse)
+        }
+      } catch (detailError) {
+        if (!isCancelled) {
+          setSectionDetailResponse(null)
+
+          if (detailError instanceof Error) {
+            setErrorMessage(detailError.message)
+          } else {
+            setErrorMessage('Failed to load section detail')
+          }
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    loadSectionDetail()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [sectionID])
+
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-slate-100 text-slate-900">
+        <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-sm text-slate-600">Loading section...</p>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  if (errorMessage !== '') {
+    return (
+      <main className="min-h-screen bg-slate-100 text-slate-900">
+        <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
+            <p className="text-sm text-red-700">{errorMessage}</p>
+            <div className="mt-4">
+              <Link
+                to="/"
+                className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+              >
+                Back to search
+              </Link>
+            </div>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  if (!sectionDetailResponse) {
+    return null
+  }
 
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
       <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-10 sm:px-6 lg:px-8">
-        <div>
-          <Link
-            to="/"
-            className="text-sm font-medium text-slate-500 hover:text-slate-900"
-          >
-            ← Back to search
-          </Link>
-        </div>
-
-        {isLoading ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
-            Loading section...
-          </div>
-        ) : null}
-
-        {!isLoading && errorMessage !== '' ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-            {errorMessage}
-          </div>
-        ) : null}
-
-        {!isLoading && detail !== null ? (
-          <>
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                {detail.section.organization_name}
+                Section detail
               </p>
 
               <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-                {detail.section.display_name}
+                {sectionDetailResponse.section.display_name}
               </h1>
 
-              <p className="mt-2 text-sm text-slate-500">
-                {detail.section.section_code} · {detail.section.section_name}
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                {sectionDetailResponse.section.organization_name}
+                {' · '}
+                {sectionDetailResponse.section.section_code}
+                {' · '}
+                {sectionDetailResponse.billets.length} billets
               </p>
 
-              {detail.section.organization_short_name !== '' ? (
-                <p className="mt-1 text-sm text-slate-400">
-                  {detail.section.organization_short_name}
+              {sectionDetailResponse.section.organization_short_name !== '' ? (
+                <p className="mt-1 text-sm text-slate-500">
+                  {sectionDetailResponse.section.organization_short_name}
                 </p>
               ) : null}
+            </div>
 
-              <p className="mt-4 text-sm text-slate-600">
-                {detail.billets.length} billet{detail.billets.length !== 1 ? 's' : ''}
-              </p>
-            </section>
+            <div className="shrink-0">
+              <Link
+                to="/"
+                className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+              >
+                Back to search
+              </Link>
+            </div>
+          </div>
+        </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900">Billets</h2>
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-lg font-semibold text-slate-900">Billets</h2>
+            <span className="text-sm text-slate-500">
+              {sectionDetailResponse.billets.length} total
+            </span>
+          </div>
 
-              {detail.billets.length === 0 ? (
-                <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-                  No billets found for this section.
-                </div>
-              ) : (
-                <div className="mt-4 grid gap-4">
-                  {detail.billets.map((billet) => (
-                    <BilletCard key={billet.billet_id} billet={billet} />
-                  ))}
-                </div>
-              )}
-            </section>
-          </>
-        ) : null}
+          {sectionDetailResponse.billets.length === 0 ? (
+            <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+              No billets found for this section.
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-4">
+              {sectionDetailResponse.billets.map((billetResult) => (
+                <article
+                  key={billetResult.billet_id}
+                  className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <h3 className="text-lg font-semibold text-slate-900">
+                        {billetResult.billet_title}
+                      </h3>
+
+                      <p className="mt-2 text-sm text-slate-600">
+                        Position {billetResult.position_number || 'N/A'}
+                        {' · '}
+                        Grade {billetResult.grade_code || 'N/A'}
+                        {' · '}
+                        {billetResult.component || 'N/A'}
+                      </p>
+
+                      <p className="mt-1 text-sm text-slate-500">
+                        UIC {billetResult.uic || 'N/A'}
+                        {' · '}
+                        Paragraph/Line {billetResult.paragraph_number || 'N/A'}/{billetResult.line_number || 'N/A'}
+                      </p>
+
+                      <p className="mt-1 text-sm text-slate-500">
+                        {billetResult.duty_location || 'N/A'}
+                        {billetResult.state_code !== '' ? `, ${billetResult.state_code}` : ''}
+                      </p>
+                    </div>
+
+                    <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
+                      {renderStatusBadge(billetResult.status)}
+
+                      <span className="inline-flex rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700">
+                        Billet ID {billetResult.billet_id}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      Occupants
+                    </h4>
+
+                    {billetResult.occupants.length === 0 ? (
+                      <p className="mt-2 text-sm text-slate-500">No occupant data returned.</p>
+                    ) : (
+                      <div className="mt-3 grid gap-3">
+                        {billetResult.occupants.map((occupantResult) => (
+                          <div
+                            key={occupantResult.person_id}
+                            className="rounded-xl border border-slate-200 bg-white px-4 py-3"
+                          >
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <p className="font-semibold text-slate-900">
+                                  {occupantResult.display_name}
+                                </p>
+
+                                <p className="mt-1 text-sm text-slate-600">
+                                  {occupantResult.rank || 'N/A'}
+                                  {occupantResult.office_symbol !== ''
+                                    ? ` · ${occupantResult.office_symbol}`
+                                    : ''}
+                                </p>
+
+                                <p className="mt-1 text-sm text-slate-500">
+                                  {occupantResult.work_email || 'No email'}
+                                  {occupantResult.work_phone !== ''
+                                    ? ` · ${occupantResult.work_phone}`
+                                    : ''}
+                                </p>
+                              </div>
+
+                              {occupantResult.is_primary ? (
+                                <span className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                                  Primary
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </main>
   )
