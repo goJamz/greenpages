@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import type { SubmitEvent } from 'react'
-import { searchSections, type SectionSearchResult } from '../api/greenpages'
+import { Link } from 'react-router'
+import { searchSections } from '../api/greenpages'
+import type { SectionSearchResult } from '../api/greenpages'
 
 function SearchPage() {
-  let searchInputValue = useState('') // Current text entered in the search input.
-  let submittedQueryValue = useState('') // Last submitted query shown above the results.
+  let searchInputValue = useState('')                          // Current text entered in the search input.
+  let submittedQueryValue = useState('')                       // Last submitted query shown above the results.
   let sectionResultsValue = useState<SectionSearchResult[]>([]) // Section results returned by the backend.
-  let isLoadingValue = useState(false) // Whether the search request is currently in flight.
-  let errorMessageValue = useState('') // User-visible validation or request error message.
+  let isLoadingValue = useState(false)                        // Whether the search request is currently in flight.
+  let errorMessageValue = useState('')                        // User-visible validation or request error message.
 
   let searchInput = searchInputValue[0]
   let setSearchInput = searchInputValue[1]
@@ -24,9 +25,9 @@ function SearchPage() {
   let errorMessage = errorMessageValue[0]
   let setErrorMessage = errorMessageValue[1]
 
-  async function handleSearchSubmit(formEvent: SubmitEvent<HTMLFormElement>) {
-    let trimmedSearchInput: string // Search input with surrounding whitespace removed.
-    let searchResponse // Successful section search response from the backend.
+  async function handleSearchSubmit(formEvent: React.FormEvent<HTMLFormElement>) {
+    let trimmedSearchInput: string  // Search input with surrounding whitespace removed.
+    let searchResponse              // Successful section search response from the backend.
 
     formEvent.preventDefault()
 
@@ -74,8 +75,7 @@ function SearchPage() {
           </h1>
 
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-            This first screen is meant to pressure-test the backend model. Search for a
-            section and confirm the backend is returning useful section-first results.
+            Search for a section and confirm the backend is returning useful section-first results.
           </p>
 
           <form className="mt-6 flex flex-col gap-3 sm:flex-row" onSubmit={handleSearchSubmit}>
@@ -110,7 +110,7 @@ function SearchPage() {
           {submittedQuery !== '' && errorMessage === '' ? (
             <div className="mt-4 text-sm text-slate-600">
               Results for <span className="font-semibold text-slate-900">{submittedQuery}</span>
-              : {` ${sectionResults.length}`}
+              {`: ${sectionResults.length}`}
             </div>
           ) : null}
         </section>
@@ -128,9 +128,10 @@ function SearchPage() {
           ) : (
             <div className="mt-4 grid gap-4">
               {sectionResults.map((sectionResult) => (
-                <article
+                <Link
                   key={sectionResult.section_id}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                  to={`/sections/${sectionResult.section_id}`}
+                  className="block rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-slate-400 hover:bg-slate-100"
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
@@ -152,7 +153,7 @@ function SearchPage() {
 
                       {sectionResult.organization_short_name !== '' ? (
                         <p className="mt-1 text-sm text-slate-500">
-                          Short name: {sectionResult.organization_short_name}
+                          {sectionResult.organization_short_name}
                         </p>
                       ) : null}
                     </div>
@@ -163,7 +164,7 @@ function SearchPage() {
                       </span>
                     </div>
                   </div>
-                </article>
+                </Link>
               ))}
             </div>
           )}

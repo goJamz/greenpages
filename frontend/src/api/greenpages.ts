@@ -16,36 +16,102 @@ export type SectionSearchResponse = {
   results: SectionSearchResult[]
 }
 
+export type BilletOccupant = {
+  person_id: number
+  display_name: string
+  rank: string
+  work_email: string
+  work_phone: string
+  office_symbol: string
+  is_primary: boolean
+}
+
+export type BilletResult = {
+  billet_id: number
+  position_number: string
+  billet_title: string
+  grade_code: string
+  rank_group: string
+  branch_code: string
+  mos_code: string
+  aoc_code: string
+  component: string
+  uic: string
+  paragraph_number: string
+  line_number: string
+  duty_location: string
+  state_code: string
+  status: string
+  occupants: BilletOccupant[]
+}
+
+export type SectionDetail = {
+  section_id: number
+  organization_id: number
+  organization_name: string
+  organization_short_name: string
+  section_code: string
+  section_name: string
+  display_name: string
+}
+
+export type SectionDetailResponse = {
+  section: SectionDetail
+  billets: BilletResult[]
+}
+
 type ErrorResponse = {
   error?: string
 }
 
-export async function searchSections(query: string): Promise<SectionSearchResponse> {
-  let httpResponse: Response // Raw HTTP response from the backend.
-  let responseBody: unknown // Parsed JSON body used for success or error inspection.
+async function parseErrorMessage(httpResponse: Response): Promise<string> {
+  let responseBody: unknown        // Parsed JSON body from the error response.
   let parsedErrorBody: ErrorResponse // Narrowed backend error payload when present.
-  let errorMessage: string // Final user-facing error message.
+
+  try {
+    responseBody = await httpResponse.json()
+    parsedErrorBody = responseBody as ErrorResponse
+
+    if (typeof parsedErrorBody.error === 'string' && parsedErrorBody.error.trim() !== '') {
+      return parsedErrorBody.error
+    }
+  } catch {
+    // Body was not JSON, fall through to generic message.
+  }
+
+  return 'Request failed'
+}
+
+export async function searchSections(query: string): Promise<SectionSearchResponse> {
+  let httpResponse: Response  // Raw HTTP response from the backend.
+  let responseBody: unknown   // Parsed JSON body on success.
+  let errorMessage: string    // Final user-facing error message.
 
   httpResponse = await fetch(`${API_BASE}/sections/search?q=${encodeURIComponent(query)}`)
 
   if (!httpResponse.ok) {
-    try {
-      responseBody = await httpResponse.json()
-      parsedErrorBody = responseBody as ErrorResponse
-
-      if (typeof parsedErrorBody.error === 'string' && parsedErrorBody.error.trim() !== '') {
-        errorMessage = parsedErrorBody.error
-      } else {
-        errorMessage = 'Search request failed'
-      }
-    } catch {
-      errorMessage = 'Search request failed'
-    }
-
+    errorMessage = await parseErrorMessage(httpResponse)
     throw new Error(errorMessage)
   }
 
   responseBody = await httpResponse.json()
 
   return responseBody as SectionSearchResponse
+}
+
+export async function getSectionDetail(sectionID: number): Promise<SectionDetailResponse> {
+  let httpResponse: Response  // Raw HTTP response from the backend.
+  let responseBody: unknown   // Parsed JSON body on success.
+  let errorMessage: string    // Final user-facing error message.
+
+  httpResponse = await fetch(`${API_BASE}/sections/${sectionID}`)
+
+  if (!httpResponse.ok) {
+    errorMessage = await parseErrorMessage(httpResponse)
+    throw new Error(errorMessage)
+  }
+
+  responseBody = await httpResponse.json()
+
+  return responseBody as SectionDetailResponse
 }
