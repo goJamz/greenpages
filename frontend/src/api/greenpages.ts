@@ -283,3 +283,15 @@ export async function getExplorerPositions(
 
   return readJsonResponse<ExplorerPositionsResponse>(httpResponse)
 }
+
+export function getExplorerPositionsExportURL(
+  filters: Partial<ExplorerPositionFilters>,
+): string {
+  const queryString = buildExplorerQueryString(filters)
+
+  return queryString === '' ? `${API_BASE}/exports/positions` : `${API_BASE}/exports/positions?${queryString}`
+}
+
+export function getSectionExportURL(sectionID: string | number): string {
+  return `${API_BASE}/exports/section/${encodeURIComponent(String(sectionID))}`
+}

@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { getExplorerPositions, type ExplorerPositionResult } from '../api/greenpages'
+import {
+  getExplorerPositions,
+  getExplorerPositionsExportURL,
+  type ExplorerPositionResult,
+} from '../api/greenpages'
 
 function renderStatusBadge(status: string) {
   let badgeClasses: string // Tailwind classes used to color the badge.
@@ -186,6 +190,17 @@ function ExplorerPage() {
     statusParam !== '' ||
     organizationParam !== ''
 
+  const exportURL = getExplorerPositionsExportURL({
+    component: componentParam,
+    grade: gradeParam,
+    branch: branchParam,
+    mos: mosParam,
+    aoc: aocParam,
+    state: stateParam,
+    status: statusParam,
+    organization: organizationParam,
+  })
+
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-10 sm:px-6 lg:px-8">
@@ -337,7 +352,7 @@ function ExplorerPage() {
               </div>
             </div>
 
-            <div className="mt-4 flex gap-3">
+            <div className="mt-4 flex flex-wrap gap-3">
               <button
                 type="submit"
                 disabled={isLoading}
@@ -355,6 +370,13 @@ function ExplorerPage() {
                   Clear all
                 </button>
               ) : null}
+
+              <a
+                href={exportURL}
+                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Export CSV
+              </a>
             </div>
           </form>
 

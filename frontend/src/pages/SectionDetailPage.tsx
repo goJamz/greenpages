@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
-import { getSectionDetail, type SectionDetailResponse } from '../api/greenpages'
+import {
+  getSectionDetail,
+  getSectionExportURL,
+  type SectionDetailResponse,
+} from '../api/greenpages'
 
 function renderStatusBadge(status: string) {
   let badgeClasses: string // Tailwind classes used to color the badge.
@@ -138,7 +142,14 @@ function SectionDetailPage() {
               ) : null}
             </div>
 
-            <div className="shrink-0">
+            <div className="flex shrink-0 flex-wrap gap-3">
+              <a
+                href={getSectionExportURL(sectionDetailResponse.section.section_id)}
+                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Export CSV
+              </a>
+
               <Link
                 to={{ pathname: '/', search: location.search }}
                 className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
