@@ -110,7 +110,6 @@ function PersonDetailPage() {
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
       <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-10 sm:px-6 lg:px-8">
-
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -119,15 +118,16 @@ function PersonDetailPage() {
               </p>
 
               <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-                {personDetailResponse.person.rank !== ''
-                  ? `${personDetailResponse.person.rank} `
-                  : ''}
                 {personDetailResponse.person.display_name}
               </h1>
 
-              {personDetailResponse.person.office_symbol !== '' ? (
-                <p className="mt-2 text-sm text-slate-600">
-                  {personDetailResponse.person.office_symbol}
+              {(personDetailResponse.person.rank !== '' ||
+                personDetailResponse.person.office_symbol !== '') ? (
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  {personDetailResponse.person.rank || 'N/A'}
+                  {personDetailResponse.person.office_symbol !== ''
+                    ? ` · ${personDetailResponse.person.office_symbol}`
+                    : ''}
                 </p>
               ) : null}
 
@@ -175,66 +175,69 @@ function PersonDetailPage() {
             </div>
           ) : (
             <div className="mt-4 grid gap-4">
-              {personDetailResponse.assignments.map((assignment) => (
+              {personDetailResponse.assignments.map((assignmentResult) => (
                 <article
-                  key={assignment.billet_id}
+                  key={`${assignmentResult.billet_id}-${assignmentResult.section_id}`}
                   className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
                 >
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <h3 className="text-lg font-semibold text-slate-900">
-                        {assignment.billet_title}
+                        {assignmentResult.billet_title}
                       </h3>
 
-                      <p className="mt-1 text-sm text-slate-600">
-                        <Link
-                          to={`/sections/${assignment.section_id}`}
-                          className="hover:text-blue-700 hover:underline"
-                        >
-                          {assignment.section_display_name}
-                        </Link>
-                        {' · '}
-                        {assignment.organization_name}
-                      </p>
-
                       <p className="mt-2 text-sm text-slate-600">
-                        Grade {assignment.billet_grade_code || 'N/A'}
+                        {assignmentResult.organization_name}
                         {' · '}
-                        Position {assignment.position_number || 'N/A'}
-                        {' · '}
-                        {assignment.component || 'N/A'}
+                        {assignmentResult.section_display_name}
                       </p>
 
                       <p className="mt-1 text-sm text-slate-500">
-                        UIC {assignment.uic || 'N/A'}
+                        Grade {assignmentResult.billet_grade_code || 'N/A'}
                         {' · '}
-                        Paragraph/Line {assignment.paragraph_number || 'N/A'}/{assignment.line_number || 'N/A'}
+                        Position {assignmentResult.position_number || 'N/A'}
+                        {' · '}
+                        {assignmentResult.component || 'N/A'}
                       </p>
 
-                      {assignment.duty_location !== '' ? (
+                      <p className="mt-1 text-sm text-slate-500">
+                        UIC {assignmentResult.uic || 'N/A'}
+                        {' · '}
+                        Paragraph/Line {assignmentResult.paragraph_number || 'N/A'}/{assignmentResult.line_number || 'N/A'}
+                      </p>
+
+                      {assignmentResult.duty_location !== '' ? (
                         <p className="mt-1 text-sm text-slate-500">
-                          {assignment.duty_location}
-                          {assignment.state_code !== '' ? `, ${assignment.state_code}` : ''}
+                          {assignmentResult.duty_location}
+                          {assignmentResult.state_code !== '' ? `, ${assignmentResult.state_code}` : ''}
                         </p>
                       ) : null}
                     </div>
 
                     <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
-                      {renderStatusBadge(assignment.billet_status)}
+                      {renderStatusBadge(assignmentResult.billet_status)}
 
-                      {assignment.is_primary ? (
+                      {assignmentResult.is_primary ? (
                         <span className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
                           Primary
                         </span>
                       ) : null}
                     </div>
                   </div>
+
+                  <div className="mt-4">
+                    <Link
+                      to={`/sections/${assignmentResult.section_id}`}
+                      className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                    >
+                      Open section
+                    </Link>
+                  </div>
                 </article>
               ))}
             </div>
           )}
         </section>
-
       </div>
     </main>
   )

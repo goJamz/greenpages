@@ -217,13 +217,15 @@ function SectionDetailPage() {
                           >
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                               <div>
-                                <Link
-                                  to={`/people/${occupantResult.person_id}`}
-                                  className="font-semibold text-slate-900 hover:text-blue-700 hover:underline"
-                                >
-                                  {occupantResult.rank !== '' ? `${occupantResult.rank} ` : ''}
-                                  {occupantResult.display_name}
-                                </Link>
+                                <p className="font-semibold text-slate-900">
+                                  <Link
+                                    to={`/people/${occupantResult.person_id}`}
+                                    className="hover:text-blue-700 hover:underline"
+                                  >
+                                    {occupantResult.rank !== '' ? `${occupantResult.rank} ` : ''}
+                                    {occupantResult.display_name}
+                                  </Link>
+                                </p>
 
                                 {occupantResult.office_symbol !== '' ? (
                                   <p className="mt-1 text-sm text-slate-600">
