@@ -7,13 +7,18 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
 
-// explorerExportMaxRows caps the first CSV export implementation so one request cannot stream an unbounded result set.
+// explorerExportMaxRows caps the first CSV export implementation so one request
+// cannot stream an unbounded result set.
 const explorerExportMaxRows = 10000
+
+// exportFileUnsafePattern matches filename characters we do not want to keep.
+var exportFileUnsafePattern = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
 // handleExportExplorerPositionsCSV handles GET /api/exports/positions.
 func (applicationServer *Server) handleExportExplorerPositionsCSV(responseWriter http.ResponseWriter, request *http.Request) {
@@ -22,6 +27,7 @@ func (applicationServer *Server) handleExportExplorerPositionsCSV(responseWriter
 	var exportedRows []explorerPositionResult  // Explorer rows included in the CSV export.
 	var exportError error                      // Error returned while loading or writing the export.
 	var fileName string                        // Suggested download filename for the CSV export.
+	var exportTimestamp time.Time              // Timestamp used in the download filename.
 	var csvWriter *csv.Writer                  // Standard library CSV writer bound to the response.
 	var headerRow []string                     // CSV header row.
 	var currentRow []string                    // Current CSV data row.
@@ -66,38 +72,41 @@ func (applicationServer *Server) handleExportExplorerPositionsCSV(responseWriter
 		return
 	}
 
-	fileName = fmt.Sprintf("greenpages_explorer_positions_%s.csv", time.Now().UTC().Format("20060102_150405"))
+	exportTimestamp = time.Now().UTC()
+	fileName = fmt.Sprintf(
+		"greenpages_explorer_positions_%s.csv",
+		exportTimestamp.Format("20060102_150405"),
+	)
 
 	responseWriter.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	responseWriter.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
 	responseWriter.WriteHeader(http.StatusOK)
 
 	csvWriter = csv.NewWriter(responseWriter)
-	defer csvWriter.Flush()
 
 	headerRow = []string{
-		"billet_id",
-		"position_number",
-		"billet_title",
-		"grade_code",
-		"branch_code",
-		"mos_code",
-		"aoc_code",
-		"component",
-		"uic",
-		"paragraph_number",
-		"line_number",
-		"duty_location",
-		"state_code",
-		"status",
-		"organization_id",
-		"organization_name",
-		"organization_short_name",
-		"section_id",
-		"section_display_name",
-		"primary_person_id",
-		"primary_person_rank",
-		"primary_person_display_name",
+		"Billet ID",
+		"Billet Title",
+		"Position Number",
+		"Grade",
+		"Branch",
+		"MOS",
+		"AOC",
+		"Component",
+		"UIC",
+		"Paragraph",
+		"Line",
+		"Duty Location",
+		"State",
+		"Status",
+		"Organization ID",
+		"Organization",
+		"Organization Short Name",
+		"Section ID",
+		"Section",
+		"Primary Occupant Person ID",
+		"Primary Occupant Rank",
+		"Primary Occupant Name",
 	}
 
 	exportError = csvWriter.Write(headerRow)
@@ -110,8 +119,8 @@ func (applicationServer *Server) handleExportExplorerPositionsCSV(responseWriter
 
 		currentRow = []string{
 			strconv.FormatInt(positionResult.BilletID, 10),
-			positionResult.PositionNumber,
 			positionResult.BilletTitle,
+			positionResult.PositionNumber,
 			positionResult.GradeCode,
 			positionResult.BranchCode,
 			positionResult.MOSCode,
@@ -138,6 +147,11 @@ func (applicationServer *Server) handleExportExplorerPositionsCSV(responseWriter
 			return
 		}
 	}
+
+	csvWriter.Flush()
+	if csvWriter.Error() != nil {
+		return
+	}
 }
 
 // handleExportSectionCSV handles GET /api/exports/section/{sectionID}.
@@ -149,6 +163,7 @@ func (applicationServer *Server) handleExportSectionCSV(responseWriter http.Resp
 	var foundBillets []billetResult   // Billets returned for the section export.
 	var exportError error             // Error returned while loading or writing the export.
 	var fileName string               // Suggested download filename for the CSV export.
+	var exportTimestamp time.Time     // Timestamp used in the download filename.
 	var csvWriter *csv.Writer         // Standard library CSV writer bound to the response.
 	var headerRow []string            // CSV header row.
 	var billetIndex int               // Loop index for billets.
@@ -199,10 +214,11 @@ func (applicationServer *Server) handleExportSectionCSV(responseWriter http.Resp
 		return
 	}
 
-	fileName = fmt.Sprintf(
-		"greenpages_section_%d_%s.csv",
+	exportTimestamp = time.Now().UTC()
+	fileName = buildSectionExportFileName(
 		foundSection.SectionID,
-		time.Now().UTC().Format("20060102_150405"),
+		foundSection.DisplayName,
+		exportTimestamp,
 	)
 
 	responseWriter.Header().Set("Content-Type", "text/csv; charset=utf-8")
@@ -210,37 +226,36 @@ func (applicationServer *Server) handleExportSectionCSV(responseWriter http.Resp
 	responseWriter.WriteHeader(http.StatusOK)
 
 	csvWriter = csv.NewWriter(responseWriter)
-	defer csvWriter.Flush()
 
 	headerRow = []string{
-		"section_id",
-		"section_display_name",
-		"section_code",
-		"organization_id",
-		"organization_name",
-		"organization_short_name",
-		"billet_id",
-		"position_number",
-		"billet_title",
-		"grade_code",
-		"rank_group",
-		"branch_code",
-		"mos_code",
-		"aoc_code",
-		"component",
-		"uic",
-		"paragraph_number",
-		"line_number",
-		"duty_location",
-		"state_code",
-		"status",
-		"occupant_person_id",
-		"occupant_rank",
-		"occupant_display_name",
-		"occupant_work_email",
-		"occupant_work_phone",
-		"occupant_office_symbol",
-		"occupant_is_primary",
+		"Section ID",
+		"Section",
+		"Section Code",
+		"Organization ID",
+		"Organization",
+		"Organization Short Name",
+		"Billet ID",
+		"Billet Title",
+		"Position Number",
+		"Grade",
+		"Rank Group",
+		"Branch",
+		"MOS",
+		"AOC",
+		"Component",
+		"UIC",
+		"Paragraph",
+		"Line",
+		"Duty Location",
+		"State",
+		"Status",
+		"Occupant Person ID",
+		"Occupant Rank",
+		"Occupant Name",
+		"Occupant Email",
+		"Occupant Phone",
+		"Occupant Office Symbol",
+		"Occupant Is Primary",
 	}
 
 	exportError = csvWriter.Write(headerRow)
@@ -260,8 +275,8 @@ func (applicationServer *Server) handleExportSectionCSV(responseWriter http.Resp
 				foundSection.OrganizationName,
 				foundSection.OrganizationShortName,
 				strconv.FormatInt(billetRecord.BilletID, 10),
-				billetRecord.PositionNumber,
 				billetRecord.BilletTitle,
+				billetRecord.PositionNumber,
 				billetRecord.GradeCode,
 				billetRecord.RankGroup,
 				billetRecord.BranchCode,
@@ -302,8 +317,8 @@ func (applicationServer *Server) handleExportSectionCSV(responseWriter http.Resp
 				foundSection.OrganizationName,
 				foundSection.OrganizationShortName,
 				strconv.FormatInt(billetRecord.BilletID, 10),
-				billetRecord.PositionNumber,
 				billetRecord.BilletTitle,
+				billetRecord.PositionNumber,
 				billetRecord.GradeCode,
 				billetRecord.RankGroup,
 				billetRecord.BranchCode,
@@ -331,4 +346,29 @@ func (applicationServer *Server) handleExportSectionCSV(responseWriter http.Resp
 			}
 		}
 	}
+
+	csvWriter.Flush()
+	if csvWriter.Error() != nil {
+		return
+	}
+}
+
+// buildSectionExportFileName builds a readable, filesystem-safe section export filename.
+func buildSectionExportFileName(sectionID int64, displayName string, exportTimestamp time.Time) string {
+	var trimmedDisplayName string // Display name with surrounding whitespace removed.
+	var safeDisplayName string    // Filesystem-safe version of the display name.
+	var timestampText string      // Timestamp suffix appended to the filename.
+	var fallbackName string       // Fallback filename prefix when display name is empty.
+
+	trimmedDisplayName = strings.TrimSpace(displayName)
+	safeDisplayName = exportFileUnsafePattern.ReplaceAllString(trimmedDisplayName, "_")
+	safeDisplayName = strings.Trim(safeDisplayName, "._-")
+	timestampText = exportTimestamp.Format("20060102_150405")
+
+	if safeDisplayName == "" {
+		fallbackName = fmt.Sprintf("greenpages_section_%d", sectionID)
+		return fmt.Sprintf("%s_roster_%s.csv", fallbackName, timestampText)
+	}
+
+	return fmt.Sprintf("%s_roster_%s.csv", safeDisplayName, timestampText)
 }
