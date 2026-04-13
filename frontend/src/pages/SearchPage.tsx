@@ -8,7 +8,11 @@ import {
   type SectionSearchResult,
 } from '../api/greenpages'
 
-type SearchMode = 'sections' | 'people'
+type SearchType = 'sections' | 'people'
+
+function isValidSearchType(value: string): value is SearchType {
+  return value === 'sections' || value === 'people'
+}
 
 function renderStatusBadge(status: string) {
   let badgeClasses: string // Tailwind classes used to color the badge.
@@ -33,12 +37,12 @@ function SearchPage() {
   const location = useLocation()
 
   const queryParam = searchParams.get('q') || ''
-  const modeParam = searchParams.get('mode') || 'sections'
+  const searchTypeParam = searchParams.get('mode') || searchParams.get('type') || 'sections'
+  const activeSearchType: SearchType = isValidSearchType(searchTypeParam)
+    ? searchTypeParam
+    : 'sections'
   const currentSearch = location.search
 
-  const [searchMode, setSearchMode] = useState<SearchMode>(
-    modeParam === 'people' ? 'people' : 'sections',
-  )
   const [searchInput, setSearchInput] = useState(queryParam)
   const [submittedQuery, setSubmittedQuery] = useState('')
   const [sectionResults, setSectionResults] = useState<SectionSearchResult[]>([])
@@ -46,13 +50,7 @@ function SearchPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
 
-  useEffect(() => {
-    if (modeParam === 'people') {
-      setSearchMode('people')
-    } else {
-      setSearchMode('sections')
-    }
-  }, [modeParam])
+  const resultCount = activeSearchType === 'people' ? personResults.length : sectionResults.length
 
   useEffect(() => {
     setSearchInput(queryParam)
@@ -62,14 +60,12 @@ function SearchPage() {
     let isCancelled = false
 
     async function loadResults() {
-      let sectionSearchResponse
-      let personSearchResponse
-
       if (queryParam === '') {
         if (!isCancelled) {
           setSubmittedQuery('')
           setSectionResults([])
           setPersonResults([])
+          setErrorMessage('')
           setIsLoading(false)
         }
         return
@@ -81,21 +77,21 @@ function SearchPage() {
       }
 
       try {
-        if (searchMode === 'sections') {
-          sectionSearchResponse = await searchSections(queryParam)
+        if (activeSearchType === 'people') {
+          const peopleResponse = await searchPeople(queryParam)
 
           if (!isCancelled) {
-            setSubmittedQuery(sectionSearchResponse.query)
-            setSectionResults(sectionSearchResponse.results)
-            setPersonResults([])
+            setSubmittedQuery(peopleResponse.query)
+            setPersonResults(peopleResponse.results)
+            setSectionResults([])
           }
         } else {
-          personSearchResponse = await searchPeople(queryParam)
+          const sectionResponse = await searchSections(queryParam)
 
           if (!isCancelled) {
-            setSubmittedQuery(personSearchResponse.query)
-            setPersonResults(personSearchResponse.results)
-            setSectionResults([])
+            setSubmittedQuery(sectionResponse.query)
+            setSectionResults(sectionResponse.results)
+            setPersonResults([])
           }
         }
       } catch (searchError) {
@@ -122,7 +118,7 @@ function SearchPage() {
     return () => {
       isCancelled = true
     }
-  }, [queryParam, searchMode])
+  }, [queryParam, activeSearchType])
 
   function handleSearchSubmit(formEvent: FormEvent<HTMLFormElement>) {
     let trimmedSearchInput: string // Search input with surrounding whitespace removed.
@@ -132,38 +128,42 @@ function SearchPage() {
     trimmedSearchInput = searchInput.trim()
 
     if (trimmedSearchInput === '') {
-      setSearchParams({})
       setSubmittedQuery('')
       setSectionResults([])
       setPersonResults([])
+      setIsLoading(false)
       setErrorMessage(
-        searchMode === 'sections'
-          ? 'Enter a section search like "XVIII Airborne Corps G6" or "NETCOM G6".'
-          : 'Enter a person search like "Johnson" or "Michael Johnson".',
+        activeSearchType === 'people'
+          ? 'Enter a person search like "Johnson" or "Michael Johnson".'
+          : 'Enter a section search like "XVIII Airborne Corps G6" or "NETCOM G6".',
       )
+      setSearchParams({})
       return
     }
 
     setSearchParams({
       q: trimmedSearchInput,
-      mode: searchMode,
+      mode: activeSearchType,
     })
   }
 
-  function handleModeChange(nextMode: SearchMode) {
-    setSearchMode(nextMode)
+  function handleSearchTypeChange(newType: SearchType) {
+    if (newType === activeSearchType) {
+      return
+    }
+
     setErrorMessage('')
 
     if (queryParam !== '') {
       setSearchParams({
         q: queryParam,
-        mode: nextMode,
+        mode: newType,
       })
       return
     }
 
     setSearchParams({
-      mode: nextMode,
+      mode: newType,
     })
   }
 
@@ -180,15 +180,15 @@ function SearchPage() {
           </h1>
 
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-            Search for a section or a person and open the right page from the results.
+            Search for sections or people across the directory.
           </p>
 
           <div className="mt-6 inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
             <button
               type="button"
-              onClick={() => handleModeChange('sections')}
+              onClick={() => handleSearchTypeChange('sections')}
               className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                searchMode === 'sections'
+                activeSearchType === 'sections'
                   ? 'bg-slate-900 text-white'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
@@ -198,9 +198,9 @@ function SearchPage() {
 
             <button
               type="button"
-              onClick={() => handleModeChange('people')}
+              onClick={() => handleSearchTypeChange('people')}
               className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                searchMode === 'people'
+                activeSearchType === 'people'
                   ? 'bg-slate-900 text-white'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
@@ -211,7 +211,7 @@ function SearchPage() {
 
           <form className="mt-6 flex flex-col gap-3 sm:flex-row" onSubmit={handleSearchSubmit}>
             <label className="sr-only" htmlFor="directory-search">
-              Search directory
+              Search {activeSearchType}
             </label>
 
             <input
@@ -220,9 +220,9 @@ function SearchPage() {
               value={searchInput}
               onChange={(changeEvent) => setSearchInput(changeEvent.target.value)}
               placeholder={
-                searchMode === 'sections'
-                  ? 'Try: XVIII Airborne Corps G6'
-                  : 'Try: Johnson, Michael R.'
+                activeSearchType === 'people'
+                  ? 'Try: Johnson or AFNC-G6'
+                  : 'Try: XVIII Airborne Corps G6'
               }
               className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-500"
             />
@@ -245,52 +245,30 @@ function SearchPage() {
           {submittedQuery !== '' && errorMessage === '' ? (
             <div className="mt-4 text-sm text-slate-600">
               Results for <span className="font-semibold text-slate-900">{submittedQuery}</span>
-              :{' '}
-              {searchMode === 'sections' ? sectionResults.length : personResults.length}
+              : {` ${resultCount}`}
             </div>
           ) : null}
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold text-slate-900">
-              {searchMode === 'sections' ? 'Section matches' : 'People matches'}
-            </h2>
-
-            <span className="text-sm text-slate-500">
-              {searchMode === 'sections'
-                ? `${sectionResults.length} results`
-                : `${personResults.length} results`}
-            </span>
+            <h2 className="text-lg font-semibold text-slate-900">Matches</h2>
+            <span className="text-sm text-slate-500">{resultCount} results</span>
           </div>
 
-          {submittedQuery !== '' &&
-          !isLoading &&
-          errorMessage === '' &&
-          searchMode === 'sections' &&
-          sectionResults.length === 0 ? (
+          {submittedQuery !== '' && !isLoading && resultCount === 0 && errorMessage === '' ? (
             <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-              No sections found matching "{submittedQuery}".
-            </div>
-          ) : null}
-
-          {submittedQuery !== '' &&
-          !isLoading &&
-          errorMessage === '' &&
-          searchMode === 'people' &&
-          personResults.length === 0 ? (
-            <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-              No people found matching "{submittedQuery}".
+              No {activeSearchType} found for "{submittedQuery}".
             </div>
           ) : null}
 
           {submittedQuery === '' && !isLoading ? (
             <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-              Run a search to see results from the backend.
+              No results yet. Run a search to see real data from the backend.
             </div>
           ) : null}
 
-          {searchMode === 'sections' && sectionResults.length > 0 ? (
+          {activeSearchType === 'sections' && sectionResults.length > 0 ? (
             <div className="mt-4 grid gap-4">
               {sectionResults.map((sectionResult) => (
                 <article
@@ -323,10 +301,6 @@ function SearchPage() {
                     </div>
 
                     <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
-                      <span className="inline-flex rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700">
-                        Section ID {sectionResult.section_id}
-                      </span>
-
                       <Link
                         to={{
                           pathname: `/sections/${sectionResult.section_id}`,
@@ -343,7 +317,7 @@ function SearchPage() {
             </div>
           ) : null}
 
-          {searchMode === 'people' && personResults.length > 0 ? (
+          {activeSearchType === 'people' && personResults.length > 0 ? (
             <div className="mt-4 grid gap-4">
               {personResults.map((personResult) => (
                 <article
@@ -364,12 +338,17 @@ function SearchPage() {
                       {personResult.billet_title !== '' ? (
                         <p className="mt-2 text-sm text-slate-600">
                           {personResult.billet_title}
+                          {personResult.billet_grade_code !== ''
+                            ? ` · Grade ${personResult.billet_grade_code}`
+                            : ''}
                         </p>
                       ) : null}
 
                       {personResult.section_display_name !== '' || personResult.office_symbol !== '' ? (
                         <p className="mt-1 text-sm text-slate-500">
-                          {personResult.section_display_name !== '' ? personResult.section_display_name : 'No current section'}
+                          {personResult.section_display_name !== ''
+                            ? personResult.section_display_name
+                            : 'No current section'}
                           {personResult.office_symbol !== '' ? ` · ${personResult.office_symbol}` : ''}
                         </p>
                       ) : null}
@@ -394,11 +373,7 @@ function SearchPage() {
                     </div>
 
                     <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
-                      {renderStatusBadge(personResult.billet_status)}
-
-                      <span className="inline-flex rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700">
-                        Person ID {personResult.person_id}
-                      </span>
+                      {personResult.billet_id !== 0 ? renderStatusBadge(personResult.billet_status) : null}
 
                       <Link
                         to={{
@@ -407,7 +382,7 @@ function SearchPage() {
                         }}
                         className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
                       >
-                        Open person
+                        View person
                       </Link>
                     </div>
                   </div>
