@@ -1,34 +1,33 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link, useLocation, useSearchParams } from 'react-router'
 import { searchSections, type SectionSearchResult } from '../api/greenpages'
 
 function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const location = useLocation()
 
-  const [searchInput, setSearchInput] = useState(searchParams.get('q') || '')
+  const queryParam = searchParams.get('q') || ''
+  const currentSearch = location.search
+
+  const [searchInput, setSearchInput] = useState(queryParam)
   const [submittedQuery, setSubmittedQuery] = useState('')
   const [sectionResults, setSectionResults] = useState<SectionSearchResult[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
 
   useEffect(() => {
-    const queryParam = searchParams.get('q') || ''
-
     setSearchInput(queryParam)
-  }, [searchParams])
+  }, [queryParam])
 
   useEffect(() => {
     let isCancelled = false
 
     async function loadResults() {
-      const queryParam = searchParams.get('q') || ''
-
       if (queryParam === '') {
         if (!isCancelled) {
           setSubmittedQuery('')
           setSectionResults([])
-          setErrorMessage('')
           setIsLoading(false)
         }
         return
@@ -69,7 +68,7 @@ function SearchPage() {
     return () => {
       isCancelled = true
     }
-  }, [searchParams])
+  }, [queryParam])
 
   function handleSearchSubmit(formEvent: FormEvent<HTMLFormElement>) {
     let trimmedSearchInput: string // Search input with surrounding whitespace removed.
@@ -79,8 +78,11 @@ function SearchPage() {
     trimmedSearchInput = searchInput.trim()
 
     if (trimmedSearchInput === '') {
-      setSearchParams({})
+      setSubmittedQuery('')
+      setSectionResults([])
+      setIsLoading(false)
       setErrorMessage('Enter a section search like "XVIII Airborne Corps G6" or "NETCOM G6".')
+      setSearchParams({})
       return
     }
 
@@ -197,7 +199,10 @@ function SearchPage() {
                       </span>
 
                       <Link
-                        to={`/sections/${sectionResult.section_id}`}
+                        to={{
+                          pathname: `/sections/${sectionResult.section_id}`,
+                          search: currentSearch,
+                        }}
                         className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
                       >
                         Open section

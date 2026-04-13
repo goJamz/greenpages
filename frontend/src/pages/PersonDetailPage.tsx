@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useLocation, useParams } from 'react-router'
 import { getPersonDetail, type PersonDetailResponse } from '../api/greenpages'
 
 function renderStatusBadge(status: string) {
@@ -22,6 +22,8 @@ function renderStatusBadge(status: string) {
 
 function PersonDetailPage() {
   const { personID } = useParams()
+  const location = useLocation()
+
   const [personDetailResponse, setPersonDetailResponse] = useState<PersonDetailResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
@@ -91,7 +93,7 @@ function PersonDetailPage() {
             <p className="text-sm text-red-700">{errorMessage}</p>
             <div className="mt-4">
               <Link
-                to="/"
+                to={{ pathname: '/', search: location.search }}
                 className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
               >
                 Back to search
@@ -152,7 +154,7 @@ function PersonDetailPage() {
 
             <div className="shrink-0">
               <Link
-                to="/"
+                to={{ pathname: '/', search: location.search }}
                 className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
               >
                 Back to search
@@ -227,7 +229,10 @@ function PersonDetailPage() {
 
                   <div className="mt-4">
                     <Link
-                      to={`/sections/${assignmentResult.section_id}`}
+                      to={{
+                        pathname: `/sections/${assignmentResult.section_id}`,
+                        search: location.search,
+                      }}
                       className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
                     >
                       Open section

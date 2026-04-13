@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useLocation, useParams } from 'react-router'
 import { getSectionDetail, type SectionDetailResponse } from '../api/greenpages'
 
 function renderStatusBadge(status: string) {
@@ -22,6 +22,8 @@ function renderStatusBadge(status: string) {
 
 function SectionDetailPage() {
   const { sectionID } = useParams()
+  const location = useLocation()
+
   const [sectionDetailResponse, setSectionDetailResponse] = useState<SectionDetailResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
@@ -91,7 +93,7 @@ function SectionDetailPage() {
             <p className="text-sm text-red-700">{errorMessage}</p>
             <div className="mt-4">
               <Link
-                to="/"
+                to={{ pathname: '/', search: location.search }}
                 className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
               >
                 Back to search
@@ -138,7 +140,7 @@ function SectionDetailPage() {
 
             <div className="shrink-0">
               <Link
-                to="/"
+                to={{ pathname: '/', search: location.search }}
                 className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
               >
                 Back to search
@@ -219,7 +221,10 @@ function SectionDetailPage() {
                               <div>
                                 <p className="font-semibold text-slate-900">
                                   <Link
-                                    to={`/people/${occupantResult.person_id}`}
+                                    to={{
+                                      pathname: `/people/${occupantResult.person_id}`,
+                                      search: location.search,
+                                    }}
                                     className="hover:text-blue-700 hover:underline"
                                   >
                                     {occupantResult.rank !== '' ? `${occupantResult.rank} ` : ''}
