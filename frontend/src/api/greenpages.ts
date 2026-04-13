@@ -16,6 +16,30 @@ export type SectionSearchResponse = {
   results: SectionSearchResult[]
 }
 
+export type PersonSearchResult = {
+  person_id: number
+  display_name: string
+  rank: string
+  work_email: string
+  work_phone: string
+  office_symbol: string
+  billet_id: number
+  billet_title: string
+  billet_grade_code: string
+  billet_status: string
+  section_id: number
+  section_display_name: string
+  organization_id: number
+  organization_name: string
+  organization_short_name: string
+}
+
+export type PersonSearchResponse = {
+  query: string
+  count: number
+  results: PersonSearchResult[]
+}
+
 export type BilletOccupant = {
   person_id: number
   display_name: string
@@ -104,9 +128,9 @@ type ErrorResponse = {
 }
 
 async function readJsonResponse<T>(httpResponse: Response): Promise<T> {
-  let responseBody: unknown        // Parsed response body from the backend.
+  let responseBody: unknown // Parsed response body from the backend.
   let parsedErrorBody: ErrorResponse // Narrowed backend error body when present.
-  let errorMessage: string         // Final user-facing error message.
+  let errorMessage: string // Final user-facing error message.
 
   if (!httpResponse.ok) {
     try {
@@ -136,6 +160,14 @@ export async function searchSections(query: string): Promise<SectionSearchRespon
   httpResponse = await fetch(`${API_BASE}/sections/search?q=${encodeURIComponent(query)}`)
 
   return readJsonResponse<SectionSearchResponse>(httpResponse)
+}
+
+export async function searchPeople(query: string): Promise<PersonSearchResponse> {
+  let httpResponse: Response // People search response returned by the backend.
+
+  httpResponse = await fetch(`${API_BASE}/people/search?q=${encodeURIComponent(query)}`)
+
+  return readJsonResponse<PersonSearchResponse>(httpResponse)
 }
 
 export async function getSectionDetail(sectionID: string): Promise<SectionDetailResponse> {
