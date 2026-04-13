@@ -1,49 +1,90 @@
-import { useState } from 'react'
-import type { SubmitEvent } from 'react'
-import { Link } from 'react-router'
+import { useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
+import { Link, useSearchParams } from 'react-router'
 import { searchSections, type SectionSearchResult } from '../api/greenpages'
 
 function SearchPage() {
-  const [searchInput, setSearchInput] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const [searchInput, setSearchInput] = useState(searchParams.get('q') || '')
   const [submittedQuery, setSubmittedQuery] = useState('')
   const [sectionResults, setSectionResults] = useState<SectionSearchResult[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
 
-  async function handleSearchSubmit(formEvent: SubmitEvent<HTMLFormElement>) {
+  useEffect(() => {
+    const queryParam = searchParams.get('q') || ''
+
+    setSearchInput(queryParam)
+  }, [searchParams])
+
+  useEffect(() => {
+    let isCancelled = false
+
+    async function loadResults() {
+      const queryParam = searchParams.get('q') || ''
+
+      if (queryParam === '') {
+        if (!isCancelled) {
+          setSubmittedQuery('')
+          setSectionResults([])
+          setErrorMessage('')
+          setIsLoading(false)
+        }
+        return
+      }
+
+      if (!isCancelled) {
+        setIsLoading(true)
+        setErrorMessage('')
+      }
+
+      try {
+        const searchResponse = await searchSections(queryParam)
+
+        if (!isCancelled) {
+          setSubmittedQuery(searchResponse.query)
+          setSectionResults(searchResponse.results)
+        }
+      } catch (searchError) {
+        if (!isCancelled) {
+          setSubmittedQuery(queryParam)
+          setSectionResults([])
+
+          if (searchError instanceof Error) {
+            setErrorMessage(searchError.message)
+          } else {
+            setErrorMessage('Search failed')
+          }
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    loadResults()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [searchParams])
+
+  function handleSearchSubmit(formEvent: FormEvent<HTMLFormElement>) {
     let trimmedSearchInput: string // Search input with surrounding whitespace removed.
-    let searchResponse // Successful section search response from the backend.
 
     formEvent.preventDefault()
 
     trimmedSearchInput = searchInput.trim()
 
     if (trimmedSearchInput === '') {
-      setSubmittedQuery('')
-      setSectionResults([])
+      setSearchParams({})
       setErrorMessage('Enter a section search like "XVIII Airborne Corps G6" or "NETCOM G6".')
       return
     }
 
-    setIsLoading(true)
-    setErrorMessage('')
-
-    try {
-      searchResponse = await searchSections(trimmedSearchInput)
-      setSubmittedQuery(searchResponse.query)
-      setSectionResults(searchResponse.results)
-    } catch (searchError) {
-      setSubmittedQuery(trimmedSearchInput)
-      setSectionResults([])
-
-      if (searchError instanceof Error) {
-        setErrorMessage(searchError.message)
-      } else {
-        setErrorMessage('Search failed')
-      }
-    } finally {
-      setIsLoading(false)
-    }
+    setSearchParams({ q: trimmedSearchInput })
   }
 
   return (
@@ -106,11 +147,19 @@ function SearchPage() {
             <span className="text-sm text-slate-500">{sectionResults.length} results</span>
           </div>
 
-          {sectionResults.length === 0 ? (
+          {submittedQuery !== '' && !isLoading && sectionResults.length === 0 && errorMessage === '' ? (
+            <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+              No sections found for "{submittedQuery}".
+            </div>
+          ) : null}
+
+          {submittedQuery === '' && !isLoading ? (
             <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
               No results yet. Run a section search to see real data from the backend.
             </div>
-          ) : (
+          ) : null}
+
+          {sectionResults.length > 0 ? (
             <div className="mt-4 grid gap-4">
               {sectionResults.map((sectionResult) => (
                 <article
@@ -158,7 +207,7 @@ function SearchPage() {
                 </article>
               ))}
             </div>
-          )}
+          ) : null}
         </section>
       </div>
     </main>
