@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 import {
+  buildExportSectionURL,
   getSectionDetail,
-  getSectionExportURL,
   type SectionDetailResponse,
 } from '../api/greenpages'
 
@@ -77,6 +77,17 @@ function SectionDetailPage() {
     }
   }, [sectionID])
 
+  function handleExportCSV() {
+    let exportURL: string // CSV export URL for the current section.
+
+    if (!sectionDetailResponse) {
+      return
+    }
+
+    exportURL = buildExportSectionURL(sectionDetailResponse.section.section_id)
+    window.location.assign(exportURL)
+  }
+
   if (isLoading) {
     return (
       <main className="min-h-screen bg-slate-100 text-slate-900">
@@ -142,13 +153,19 @@ function SectionDetailPage() {
               ) : null}
             </div>
 
-            <div className="flex shrink-0 flex-wrap gap-3">
-              <a
-                href={getSectionExportURL(sectionDetailResponse.section.section_id)}
-                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            <div className="flex shrink-0 gap-3">
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                disabled={sectionDetailResponse.billets.length === 0}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-slate-100"
               >
+                <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" />
+                  <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
+                </svg>
                 Export CSV
-              </a>
+              </button>
 
               <Link
                 to={{ pathname: '/', search: location.search }}

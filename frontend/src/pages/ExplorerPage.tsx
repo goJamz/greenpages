@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import {
+  buildExportPositionsURL,
   getExplorerPositions,
-  getExplorerPositionsExportURL,
   type ExplorerPositionResult,
 } from '../api/greenpages'
 
@@ -180,6 +180,23 @@ function ExplorerPage() {
     setSearchParams({})
   }
 
+  function handleExportCSV() {
+    let exportURL: string // CSV export URL for the current explorer filter state.
+
+    exportURL = buildExportPositionsURL({
+      component: componentParam,
+      grade: gradeParam,
+      branch: branchParam,
+      mos: mosParam,
+      aoc: aocParam,
+      state: stateParam,
+      status: statusParam,
+      organization: organizationParam,
+    })
+
+    window.location.assign(exportURL)
+  }
+
   const hasActiveFilters =
     componentParam !== '' ||
     gradeParam !== '' ||
@@ -189,17 +206,6 @@ function ExplorerPage() {
     stateParam !== '' ||
     statusParam !== '' ||
     organizationParam !== ''
-
-  const exportURL = getExplorerPositionsExportURL({
-    component: componentParam,
-    grade: gradeParam,
-    branch: branchParam,
-    mos: mosParam,
-    aoc: aocParam,
-    state: stateParam,
-    status: statusParam,
-    organization: organizationParam,
-  })
 
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
@@ -352,7 +358,7 @@ function ExplorerPage() {
               </div>
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-3">
+            <div className="mt-4 flex gap-3">
               <button
                 type="submit"
                 disabled={isLoading}
@@ -370,13 +376,6 @@ function ExplorerPage() {
                   Clear all
                 </button>
               ) : null}
-
-              <a
-                href={exportURL}
-                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-              >
-                Export CSV
-              </a>
             </div>
           </form>
 
@@ -389,8 +388,24 @@ function ExplorerPage() {
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold text-slate-900">Positions</h2>
-            <span className="text-sm text-slate-500">{resultCount} returned</span>
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-semibold text-slate-900">Positions</h2>
+              <span className="text-sm text-slate-500">{resultCount} returned</span>
+            </div>
+
+            {!isLoading && results.length > 0 ? (
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" />
+                  <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
+                </svg>
+                Export CSV
+              </button>
+            ) : null}
           </div>
 
           {isLoading ? (
