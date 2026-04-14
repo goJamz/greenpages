@@ -309,7 +309,7 @@ func (applicationServer *Server) getSectionDetail(
 			}
 
 			currentBillet.Occupants = append(currentBillet.Occupants, currentOccupant)
-			currentBillet.Status = BilletStatusFilled
+			currentBillet.Status = billetStatusFilledDisplay
 		}
 	}
 

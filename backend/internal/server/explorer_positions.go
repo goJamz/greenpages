@@ -198,7 +198,7 @@ func (applicationServer *Server) handleExplorerPositions(responseWriter http.Res
 		Organization: strings.TrimSpace(rawOrganization),
 	}
 
-	if cleanedFilters.Status != "" && !isValidExplorerStatus(cleanedFilters.Status) {
+	if cleanedFilters.Status != "" && !isValidBilletStatusValue(cleanedFilters.Status) {
 		responseWriter.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(responseWriter).Encode(map[string]string{
 			"error": "status must be one of: filled, vacant, unknown",

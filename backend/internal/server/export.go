@@ -45,7 +45,7 @@ func (applicationServer *Server) handleExportExplorerPositionsCSV(responseWriter
 		Organization: strings.TrimSpace(request.URL.Query().Get("organization")),
 	}
 
-	if cleanedFilters.Status != "" && !isValidExplorerStatus(cleanedFilters.Status) {
+	if cleanedFilters.Status != "" && !isValidBilletStatusValue(cleanedFilters.Status) {
 		responseWriter.Header().Set("Content-Type", "application/json")
 		responseWriter.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(responseWriter).Encode(map[string]string{

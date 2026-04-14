@@ -1,15 +1,16 @@
 // backend/internal/server/billet_status.go
 package server
 
-import (
-	"strings"
-)
+import "strings"
 
-// API-facing billet status values. These are the title-case strings returned
-// by the API regardless of how status is stored in the database.
-const BilletStatusFilled = "Filled"
-const BilletStatusVacant = "Vacant"
-const BilletStatusUnknown = "Unknown"
+const (
+	billetStatusFilledValue    = "filled"  // Canonical stored/filter value for a filled billet.
+	billetStatusVacantValue    = "vacant"  // Canonical stored/filter value for a vacant billet.
+	billetStatusUnknownValue   = "unknown" // Canonical stored/filter value for an unknown billet.
+	billetStatusFilledDisplay  = "Filled"  // API display value for a filled billet.
+	billetStatusVacantDisplay  = "Vacant"  // API display value for a vacant billet.
+	billetStatusUnknownDisplay = "Unknown" // API display value for an unknown billet.
+)
 
 // normalizeBilletStatus converts stored database values into API display values.
 // Any unrecognized value is treated as Unknown.
@@ -19,19 +20,21 @@ func normalizeBilletStatus(rawStatus string) string {
 	loweredStatus = strings.ToLower(strings.TrimSpace(rawStatus))
 
 	switch loweredStatus {
-	case "filled":
-		return BilletStatusFilled
-	case "vacant":
-		return BilletStatusVacant
-	case "unknown":
-		return BilletStatusUnknown
+	case billetStatusFilledValue:
+		return billetStatusFilledDisplay
+	case billetStatusVacantValue:
+		return billetStatusVacantDisplay
+	case billetStatusUnknownValue:
+		return billetStatusUnknownDisplay
 	default:
-		return BilletStatusUnknown
+		return billetStatusUnknownDisplay
 	}
 }
 
-// isValidExplorerStatus returns true when the explorer status filter is a supported value.
-// Filter values are lowercase to match the database storage format.
-func isValidExplorerStatus(statusValue string) bool {
-	return statusValue == "filled" || statusValue == "vacant" || statusValue == "unknown"
+// isValidBilletStatusValue returns true when the billet status filter is a supported value.
+// Callers are expected to pass already-lowercased and trimmed input.
+func isValidBilletStatusValue(statusValue string) bool {
+	return statusValue == billetStatusFilledValue ||
+		statusValue == billetStatusVacantValue ||
+		statusValue == billetStatusUnknownValue
 }
