@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import {
   buildExportPositionsURL,
@@ -98,6 +97,15 @@ const conusStateOptions = [
   { value: 'WA', label: 'WA' },
 ]
 
+type ExplorerFilterName =
+  | 'component'
+  | 'grade'
+  | 'branch'
+  | 'mos'
+  | 'aoc'
+  | 'state'
+  | 'status'
+
 function ExplorerPage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -109,36 +117,10 @@ function ExplorerPage() {
   const stateParam = searchParams.get('state') || ''
   const statusParam = searchParams.get('status') || ''
 
-  const [componentInput, setComponentInput] = useState(componentParam)
-  const [gradeInput, setGradeInput] = useState(gradeParam)
-  const [branchInput, setBranchInput] = useState(branchParam)
-  const [mosInput, setMosInput] = useState(mosParam)
-  const [aocInput, setAocInput] = useState(aocParam)
-  const [stateInput, setStateInput] = useState(stateParam)
-  const [statusInput, setStatusInput] = useState(statusParam)
-
   const [results, setResults] = useState<ExplorerPositionResult[]>([])
   const [resultCount, setResultCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
-
-  useEffect(() => {
-    setComponentInput(componentParam)
-    setGradeInput(gradeParam)
-    setBranchInput(branchParam)
-    setMosInput(mosParam)
-    setAocInput(aocParam)
-    setStateInput(stateParam)
-    setStatusInput(statusParam)
-  }, [
-    componentParam,
-    gradeParam,
-    branchParam,
-    mosParam,
-    aocParam,
-    stateParam,
-    statusParam,
-  ])
 
   useEffect(() => {
     let isCancelled = false
@@ -201,39 +183,17 @@ function ExplorerPage() {
     statusParam,
   ])
 
-  function handleFilterSubmit(formEvent: FormEvent<HTMLFormElement>) {
-    let nextSearchParams: URLSearchParams // New URL search params built from current filter inputs.
+  function handleFilterChange(filterName: ExplorerFilterName, filterValue: string) {
+    let nextSearchParams: URLSearchParams // Next URL search params with the updated filter value.
+    let trimmedFilterValue: string // Filter value with surrounding whitespace removed.
 
-    formEvent.preventDefault()
+    nextSearchParams = new URLSearchParams(searchParams)
+    trimmedFilterValue = filterValue.trim()
 
-    nextSearchParams = new URLSearchParams()
-
-    if (componentInput.trim() !== '') {
-      nextSearchParams.set('component', componentInput.trim())
-    }
-
-    if (gradeInput.trim() !== '') {
-      nextSearchParams.set('grade', gradeInput.trim())
-    }
-
-    if (branchInput.trim() !== '') {
-      nextSearchParams.set('branch', branchInput.trim())
-    }
-
-    if (mosInput.trim() !== '') {
-      nextSearchParams.set('mos', mosInput.trim())
-    }
-
-    if (aocInput.trim() !== '') {
-      nextSearchParams.set('aoc', aocInput.trim())
-    }
-
-    if (stateInput.trim() !== '') {
-      nextSearchParams.set('state', stateInput.trim())
-    }
-
-    if (statusInput.trim() !== '') {
-      nextSearchParams.set('status', statusInput.trim())
+    if (trimmedFilterValue === '') {
+      nextSearchParams.delete(filterName)
+    } else {
+      nextSearchParams.set(filterName, trimmedFilterValue)
     }
 
     setSearchParams(nextSearchParams)
@@ -283,8 +243,7 @@ function ExplorerPage() {
               </h1>
 
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                Browse billets across the force. Use filters to narrow by component, grade,
-                branch, MOS, AOC, state, or status.
+                Browse billets across the force. Filters apply automatically as you change them.
               </p>
             </div>
 
@@ -298,7 +257,7 @@ function ExplorerPage() {
             </div>
           </div>
 
-          <form className="mt-6" onSubmit={handleFilterSubmit}>
+          <div className="mt-6">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
               <div>
                 <label htmlFor="filter-component" className="block text-xs font-semibold text-slate-500">
@@ -306,8 +265,8 @@ function ExplorerPage() {
                 </label>
                 <select
                   id="filter-component"
-                  value={componentInput}
-                  onChange={(changeEvent) => setComponentInput(changeEvent.target.value)}
+                  value={componentParam}
+                  onChange={(changeEvent) => handleFilterChange('component', changeEvent.target.value)}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
@@ -323,8 +282,8 @@ function ExplorerPage() {
                 </label>
                 <select
                   id="filter-status"
-                  value={statusInput}
-                  onChange={(changeEvent) => setStatusInput(changeEvent.target.value)}
+                  value={statusParam}
+                  onChange={(changeEvent) => handleFilterChange('status', changeEvent.target.value)}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
@@ -340,8 +299,8 @@ function ExplorerPage() {
                 </label>
                 <select
                   id="filter-grade"
-                  value={gradeInput}
-                  onChange={(changeEvent) => setGradeInput(changeEvent.target.value)}
+                  value={gradeParam}
+                  onChange={(changeEvent) => handleFilterChange('grade', changeEvent.target.value)}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
@@ -369,8 +328,8 @@ function ExplorerPage() {
                 </label>
                 <select
                   id="filter-branch"
-                  value={branchInput}
-                  onChange={(changeEvent) => setBranchInput(changeEvent.target.value)}
+                  value={branchParam}
+                  onChange={(changeEvent) => handleFilterChange('branch', changeEvent.target.value)}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
@@ -386,8 +345,8 @@ function ExplorerPage() {
                 </label>
                 <select
                   id="filter-mos"
-                  value={mosInput}
-                  onChange={(changeEvent) => setMosInput(changeEvent.target.value)}
+                  value={mosParam}
+                  onChange={(changeEvent) => handleFilterChange('mos', changeEvent.target.value)}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
@@ -403,8 +362,8 @@ function ExplorerPage() {
                 </label>
                 <select
                   id="filter-aoc"
-                  value={aocInput}
-                  onChange={(changeEvent) => setAocInput(changeEvent.target.value)}
+                  value={aocParam}
+                  onChange={(changeEvent) => handleFilterChange('aoc', changeEvent.target.value)}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
@@ -420,8 +379,8 @@ function ExplorerPage() {
                 </label>
                 <select
                   id="filter-state"
-                  value={stateInput}
-                  onChange={(changeEvent) => setStateInput(changeEvent.target.value)}
+                  value={stateParam}
+                  onChange={(changeEvent) => handleFilterChange('state', changeEvent.target.value)}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
@@ -439,15 +398,7 @@ function ExplorerPage() {
               </div>
             </div>
 
-            <div className="mt-4 flex gap-3">
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-              >
-                {isLoading ? 'Loading...' : 'Apply filters'}
-              </button>
-
+            <div className="mt-4 flex items-center gap-3">
               {hasActiveFilters ? (
                 <button
                   type="button"
@@ -456,9 +407,15 @@ function ExplorerPage() {
                 >
                   Clear all
                 </button>
+              ) : (
+                <span className="text-sm text-slate-500">Showing all positions.</span>
+              )}
+
+              {isLoading ? (
+                <span className="text-sm text-slate-500">Refreshing results…</span>
               ) : null}
             </div>
-          </form>
+          </div>
 
           {errorMessage !== '' ? (
             <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
