@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import {
   buildExportPositionsURL,
@@ -7,11 +7,6 @@ import {
   type ExplorerPositionResult,
 } from '../api/greenpages'
 import { renderStatusBadge } from '../components/StatusBadge'
-
-type SelectOption = {
-  value: string
-  label: string
-}
 
 const componentOptions = [
   { value: 'Active', label: 'Active' },
@@ -41,12 +36,6 @@ const enlistedGradeOptions = [
   { value: 'MSG', label: 'MSG' },
   { value: 'SFC', label: 'SFC' },
   { value: 'SSG', label: 'SSG' },
-]
-
-const allKnownGradeOptions = [
-  ...officerGradeOptions,
-  ...warrantOfficerGradeOptions,
-  ...enlistedGradeOptions,
 ]
 
 const branchOptions = [
@@ -97,7 +86,7 @@ const aocOptions = [
   { value: '91A', label: '91A — Maintenance' },
 ]
 
-const overseasStateOptions = [
+const pinnedOconusStateOptions = [
   { value: 'AA', label: 'AA — Americas' },
   { value: 'AE', label: 'AE — Europe' },
   { value: 'AP', label: 'AP — Pacific' },
@@ -121,67 +110,58 @@ const conusStateOptions = [
   { value: 'WA', label: 'WA' },
 ]
 
-const allKnownStateOptions = [
-  ...overseasStateOptions,
-  ...conusStateOptions,
-]
-
-function buildAvailableOptions(
-  staticOptions: SelectOption[],
+// filterOptionsByAvailable narrows a static option array to only the values
+// the backend reports as available for the current filter combination.
+// The currently selected value is always kept visible so the user does not
+// see their selection disappear from the dropdown.
+// Returns all options when availableValues is null (initial load).
+function filterOptionsByAvailable(
+  options: { value: string; label: string }[],
   availableValues: string[] | null,
-  selectedValue: string,
-): SelectOption[] {
-  const availableValueSet = new Set(availableValues ?? [])
-  const selectedValuePresent = selectedValue.trim() !== ''
-  const knownValueSet = new Set(staticOptions.map((option) => option.value))
-  const filteredOptions = staticOptions.filter((option) => {
-    if (availableValueSet.has(option.value)) {
-      return true
-    }
-
-    if (selectedValuePresent && option.value === selectedValue) {
-      return true
-    }
-
-    return availableValues === null
-  })
-  const unknownOptions = (availableValues ?? [])
-    .filter((value) => !knownValueSet.has(value))
-    .sort()
-    .map((value) => ({ value, label: value }))
-
-  if (
-    selectedValuePresent &&
-    !knownValueSet.has(selectedValue) &&
-    !unknownOptions.some((option) => option.value === selectedValue)
-  ) {
-    unknownOptions.unshift({ value: selectedValue, label: selectedValue })
+  currentSelection: string,
+): { value: string; label: string }[] {
+  if (availableValues === null) {
+    return options
   }
 
-  return [...filteredOptions, ...unknownOptions]
+  return options.filter((option) =>
+    availableValues.includes(option.value) || option.value === currentSelection,
+  )
 }
 
-function buildUnknownOptions(
-  knownOptions: SelectOption[],
+// buildAdditionalStateOptions surfaces backend-returned state codes that are
+// not already covered by the pinned OCONUS list or the known CONUS list.
+// This prevents unknown future codes from getting shoved into the wrong group.
+function buildAdditionalStateOptions(
   availableValues: string[] | null,
-  selectedValue: string,
-): SelectOption[] {
-  const knownValueSet = new Set(knownOptions.map((option) => option.value))
-  const selectedValuePresent = selectedValue.trim() !== ''
-  const unknownOptions = (availableValues ?? [])
-    .filter((value) => !knownValueSet.has(value))
-    .sort()
-    .map((value) => ({ value, label: value }))
+  currentSelection: string,
+): { value: string; label: string }[] {
+  const knownStateCodes = new Set([
+    ...pinnedOconusStateOptions.map((option) => option.value),
+    ...conusStateOptions.map((option) => option.value),
+  ])
+  const additionalValues = new Set<string>()
+  const sortedAdditionalValues: string[] = []
 
-  if (
-    selectedValuePresent &&
-    !knownValueSet.has(selectedValue) &&
-    !unknownOptions.some((option) => option.value === selectedValue)
-  ) {
-    unknownOptions.unshift({ value: selectedValue, label: selectedValue })
+  if (availableValues !== null) {
+    availableValues.forEach((stateValue) => {
+      if (stateValue !== '' && !knownStateCodes.has(stateValue)) {
+        additionalValues.add(stateValue)
+      }
+    })
   }
 
-  return unknownOptions
+  if (currentSelection !== '' && !knownStateCodes.has(currentSelection)) {
+    additionalValues.add(currentSelection)
+  }
+
+  sortedAdditionalValues.push(...additionalValues)
+  sortedAdditionalValues.sort()
+
+  return sortedAdditionalValues.map((stateValue) => ({
+    value: stateValue,
+    label: stateValue,
+  }))
 }
 
 function ExplorerPage() {
@@ -266,8 +246,8 @@ function ExplorerPage() {
 
   function setFilterParam(filterKey: string, filterValue: string) {
     setSearchParams((previousParams) => {
-      let nextParams: URLSearchParams = new URLSearchParams(previousParams) // Cloned params with one filter updated.
-      let trimmedFilterValue: string // Filter value with surrounding whitespace removed.
+      let nextParams: URLSearchParams = new URLSearchParams(previousParams)
+      let trimmedFilterValue: string
 
       trimmedFilterValue = filterValue.trim()
 
@@ -286,7 +266,7 @@ function ExplorerPage() {
   }
 
   function handleExportCSV() {
-    let exportURL: string // CSV export URL for the current explorer filter state.
+    let exportURL: string
 
     exportURL = buildExportPositionsURL({
       component: componentParam,
@@ -310,18 +290,60 @@ function ExplorerPage() {
     stateParam !== '' ||
     statusParam !== ''
 
-  const availableComponentOptions = buildAvailableOptions(componentOptions, availableOptions?.components ?? null, componentParam)
-  const availableStatusOptions = buildAvailableOptions(statusOptions, availableOptions?.statuses ?? null, statusParam)
-  const availableOfficerGradeOptions = buildAvailableOptions(officerGradeOptions, availableOptions?.grades ?? null, gradeParam)
-  const availableWarrantOfficerGradeOptions = buildAvailableOptions(warrantOfficerGradeOptions, availableOptions?.grades ?? null, gradeParam)
-  const availableEnlistedGradeOptions = buildAvailableOptions(enlistedGradeOptions, availableOptions?.grades ?? null, gradeParam)
-  const availableOtherGradeOptions = buildUnknownOptions(allKnownGradeOptions, availableOptions?.grades ?? null, gradeParam)
-  const availableBranchOptions = buildAvailableOptions(branchOptions, availableOptions?.branches ?? null, branchParam)
-  const availableMOSOptions = buildAvailableOptions(mosOptions, availableOptions?.mos_codes ?? null, mosParam)
-  const availableAOCOptions = buildAvailableOptions(aocOptions, availableOptions?.aoc_codes ?? null, aocParam)
-  const availableOverseasStateOptions = buildAvailableOptions(overseasStateOptions, availableOptions?.states ?? null, stateParam)
-  const availableConusStateOptions = buildAvailableOptions(conusStateOptions, availableOptions?.states ?? null, stateParam)
-  const availableOtherStateOptions = buildUnknownOptions(allKnownStateOptions, availableOptions?.states ?? null, stateParam)
+  const visibleComponentOptions = filterOptionsByAvailable(
+    componentOptions,
+    availableOptions?.components ?? null,
+    componentParam,
+  )
+  const visibleStatusOptions = filterOptionsByAvailable(
+    statusOptions,
+    availableOptions?.statuses ?? null,
+    statusParam,
+  )
+  const visibleOfficerGradeOptions = filterOptionsByAvailable(
+    officerGradeOptions,
+    availableOptions?.grades ?? null,
+    gradeParam,
+  )
+  const visibleWarrantOfficerGradeOptions = filterOptionsByAvailable(
+    warrantOfficerGradeOptions,
+    availableOptions?.grades ?? null,
+    gradeParam,
+  )
+  const visibleEnlistedGradeOptions = filterOptionsByAvailable(
+    enlistedGradeOptions,
+    availableOptions?.grades ?? null,
+    gradeParam,
+  )
+  const visibleBranchOptions = filterOptionsByAvailable(
+    branchOptions,
+    availableOptions?.branches ?? null,
+    branchParam,
+  )
+  const visibleMosOptions = filterOptionsByAvailable(
+    mosOptions,
+    availableOptions?.mos_codes ?? null,
+    mosParam,
+  )
+  const visibleAocOptions = filterOptionsByAvailable(
+    aocOptions,
+    availableOptions?.aoc_codes ?? null,
+    aocParam,
+  )
+
+  // AA / AE / AP stay pinned and visible by design.
+  const visiblePinnedOconusStateOptions = pinnedOconusStateOptions
+
+  const visibleConusStateOptions = filterOptionsByAvailable(
+    conusStateOptions,
+    availableOptions?.states ?? null,
+    stateParam,
+  )
+
+  const visibleAdditionalStateOptions = useMemo(
+    () => buildAdditionalStateOptions(availableOptions?.states ?? null, stateParam),
+    [availableOptions, stateParam],
+  )
 
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
@@ -338,7 +360,8 @@ function ExplorerPage() {
               </h1>
 
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                Browse billets across the force. Filters apply automatically, and available options update as you narrow results.
+                Browse billets across the force. Use filters to narrow by component, grade,
+                branch, MOS, AOC, state, or status.
               </p>
             </div>
 
@@ -365,7 +388,7 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  {availableComponentOptions.map((option) => (
+                  {visibleComponentOptions.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
@@ -382,7 +405,7 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  {availableStatusOptions.map((option) => (
+                  {visibleStatusOptions.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
@@ -399,30 +422,23 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  {availableOfficerGradeOptions.length > 0 ? (
+                  {visibleOfficerGradeOptions.length > 0 ? (
                     <optgroup label="Officer">
-                      {availableOfficerGradeOptions.map((option) => (
+                      {visibleOfficerGradeOptions.map((option) => (
                         <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </optgroup>
                   ) : null}
-                  {availableWarrantOfficerGradeOptions.length > 0 ? (
+                  {visibleWarrantOfficerGradeOptions.length > 0 ? (
                     <optgroup label="Warrant Officer">
-                      {availableWarrantOfficerGradeOptions.map((option) => (
+                      {visibleWarrantOfficerGradeOptions.map((option) => (
                         <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </optgroup>
                   ) : null}
-                  {availableEnlistedGradeOptions.length > 0 ? (
+                  {visibleEnlistedGradeOptions.length > 0 ? (
                     <optgroup label="Enlisted">
-                      {availableEnlistedGradeOptions.map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </optgroup>
-                  ) : null}
-                  {availableOtherGradeOptions.length > 0 ? (
-                    <optgroup label="Other">
-                      {availableOtherGradeOptions.map((option) => (
+                      {visibleEnlistedGradeOptions.map((option) => (
                         <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </optgroup>
@@ -441,7 +457,7 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  {availableBranchOptions.map((option) => (
+                  {visibleBranchOptions.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
@@ -458,7 +474,7 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  {availableMOSOptions.map((option) => (
+                  {visibleMosOptions.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
@@ -475,7 +491,7 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  {availableAOCOptions.map((option) => (
+                  {visibleAocOptions.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
@@ -492,23 +508,24 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  {availableOverseasStateOptions.length > 0 ? (
-                    <optgroup label="OCONUS">
-                      {availableOverseasStateOptions.map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </optgroup>
-                  ) : null}
-                  {availableConusStateOptions.length > 0 ? (
+
+                  <optgroup label="OCONUS">
+                    {visiblePinnedOconusStateOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </optgroup>
+
+                  {visibleConusStateOptions.length > 0 ? (
                     <optgroup label="CONUS">
-                      {availableConusStateOptions.map((option) => (
+                      {visibleConusStateOptions.map((option) => (
                         <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </optgroup>
                   ) : null}
-                  {availableOtherStateOptions.length > 0 ? (
-                    <optgroup label="Other">
-                      {availableOtherStateOptions.map((option) => (
+
+                  {visibleAdditionalStateOptions.length > 0 ? (
+                    <optgroup label="Additional">
+                      {visibleAdditionalStateOptions.map((option) => (
                         <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </optgroup>
