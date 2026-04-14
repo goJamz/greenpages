@@ -442,7 +442,7 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  <optgroup label="Overseas">
+                  <optgroup label="OCONUS">
                     {overseasStateOptions.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
