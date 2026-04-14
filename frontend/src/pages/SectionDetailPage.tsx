@@ -5,24 +5,7 @@ import {
   getSectionDetail,
   type SectionDetailResponse,
 } from '../api/greenpages'
-
-function renderStatusBadge(status: string) {
-  let badgeClasses: string // Tailwind classes used to color the badge.
-
-  if (status === 'Filled') {
-    badgeClasses = 'bg-emerald-100 text-emerald-700'
-  } else if (status === 'Vacant') {
-    badgeClasses = 'bg-amber-100 text-amber-700'
-  } else {
-    badgeClasses = 'bg-slate-200 text-slate-700'
-  }
-
-  return (
-    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${badgeClasses}`}>
-      {status}
-    </span>
-  )
-}
+import { renderStatusBadge } from '../components/StatusBadge'
 
 function SectionDetailPage() {
   const { sectionID } = useParams()

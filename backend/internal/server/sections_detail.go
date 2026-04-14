@@ -7,7 +7,6 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 const sectionDetailQuery = `
@@ -113,24 +112,6 @@ type billetResult struct {
 type sectionDetailResponse struct {
 	Section sectionDetail  `json:"section"` // Section metadata.
 	Billets []billetResult `json:"billets"` // Billets in the section with occupants.
-}
-
-// normalizeBilletStatus converts stored database values into API display values.
-func normalizeBilletStatus(rawStatus string) string {
-	var loweredStatus string // Lowercased billet status from the database.
-
-	loweredStatus = strings.ToLower(strings.TrimSpace(rawStatus))
-
-	switch loweredStatus {
-	case "filled":
-		return "Filled"
-	case "vacant":
-		return "Vacant"
-	case "unknown":
-		return "Unknown"
-	default:
-		return "Unknown"
-	}
 }
 
 // handleSectionDetail handles GET /api/sections/{sectionID}.
@@ -328,7 +309,7 @@ func (applicationServer *Server) getSectionDetail(
 			}
 
 			currentBillet.Occupants = append(currentBillet.Occupants, currentOccupant)
-			currentBillet.Status = "Filled"
+			currentBillet.Status = BilletStatusFilled
 		}
 	}
 

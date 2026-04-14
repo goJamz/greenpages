@@ -344,8 +344,3 @@ func (applicationServer *Server) searchExplorerPositions(
 
 	return explorerResults, nil
 }
-
-// isValidExplorerStatus returns true when the explorer status filter is supported.
-func isValidExplorerStatus(statusValue string) bool {
-	return statusValue == "filled" || statusValue == "vacant" || statusValue == "unknown"
-}

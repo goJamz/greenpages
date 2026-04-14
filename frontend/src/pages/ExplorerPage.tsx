@@ -6,6 +6,7 @@ import {
   getExplorerPositions,
   type ExplorerPositionResult,
 } from '../api/greenpages'
+import { renderStatusBadge } from '../components/StatusBadge'
 
 const officerGradeOptions = [
   { value: 'COL', label: 'COL' },
@@ -96,24 +97,6 @@ const conusStateOptions = [
   { value: 'VA', label: 'VA' },
   { value: 'WA', label: 'WA' },
 ]
-
-function renderStatusBadge(status: string) {
-  let badgeClasses: string // Tailwind classes used to color the badge.
-
-  if (status === 'Filled') {
-    badgeClasses = 'bg-emerald-100 text-emerald-700'
-  } else if (status === 'Vacant') {
-    badgeClasses = 'bg-amber-100 text-amber-700'
-  } else {
-    badgeClasses = 'bg-slate-200 text-slate-700'
-  }
-
-  return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${badgeClasses}`}>
-      {status}
-    </span>
-  )
-}
 
 function ExplorerPage() {
   const [searchParams, setSearchParams] = useSearchParams()
