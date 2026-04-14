@@ -17,7 +17,7 @@ That creates friction for coordination, staffing, and general Army awareness.
 
 **Green Pages** is a CAC-authenticated Army web application that lets soldiers search people, sections, billets, and organizations, view section-level org charts, and browse Army-wide positions across components.
 
-It is meant to combine two user experiences in one platform:
+It combines two user experiences in one platform:
 
 ### A. Directory
 A person-first directory for **Active Duty Army** that helps users answer:
@@ -40,7 +40,7 @@ The product is **not just a people finder**.
 
 It is a **person-first directory layered on top of a billet-and-organization model**.
 
-That means the backend should be modeled like this:
+That means the backend is modeled like this:
 
 **Organization → Section → Billet → Person**
 
@@ -52,200 +52,98 @@ This matters because the app must still work when:
 - users want to browse billets even when there is no occupant,
 - users want to view an entire section instead of a single person.
 
-## 4. Confirmed decisions from this thread
+## 4. Authentication and access
 
-### Authentication and access
-- CAC authentication is required through **Keycloak**.
-- Keycloak sits in front of the CAC trust chain and acts as the identity provider for the application.
-- Any user who can successfully CAC authenticate through Keycloak can use the application.
-- For MVP, **authenticated = full access**. There is no RBAC layer in the MVP; any authenticated user has full read access to all available directory and explorer data.
+- CAC authentication through **Keycloak**.
+- Keycloak sits in front of the CAC trust chain and acts as the identity provider.
+- Any user who can successfully CAC authenticate can use the application.
+- For MVP, **authenticated = full access**. There is no RBAC layer. Any authenticated user has full read access to all available directory and explorer data.
+- Access is limited to users with a `.mil` email associated with the certificate.
 
-### Scope
-- **Directory:** Active Duty Army.
-- **Position Explorer:** all Army components.
-- **Current organizations only** for MVP.
-- **Uniformed military billets only** for MVP.
-- Civilians and contractors are out of scope for the initial release.
+Auth is not yet wired into the frontend. Keycloak integration will arrive after the core product loop is proven.
 
-### Search behavior
-Users should be able to search by:
+## 5. Scope
 
-- person name,
-- organization name,
-- staff section,
-- billet title,
-- UIC,
-- official names,
-- shorthand and aliases.
+### In scope for MVP
+- Active Duty directory experience
+- Army-wide position explorer across Active, Guard, and Reserve
+- current organizations only
+- uniformed military billets only
+- section search and section detail pages
+- people search and person detail pages
+- position explorer with filter-first browsing
+- billet status labels: Filled, Vacant, Unknown
+- CSV export from the explorer and from section detail
+- daily refresh (design, not yet built)
+- desktop-first
+- Zarf + UDS delivery packaging (not yet built)
 
-Examples:
+### Out of scope for MVP
+- civilians and contractors
+- assignment history
+- mobile-first design
+- inactive / legacy organizations
+- advanced analytics dashboards
+- complex manual data stewardship tooling
+- RBAC or role-based visibility restrictions
 
-- `18th Airborne Corps G6`
-- `XVIII Airborne Corps G-6`
-- `I Corps G3`
-- person name queries
-- broad section terms like `G6`
+## 6. What the MVP answers
 
-Expected behavior:
+The MVP should answer these questions well:
 
-- Searching a section like `18th Airborne Corps G6` should open the **whole G-6 section**, not just one billet.
-- Broad searches like `G6` should return a **list of matching sections**.
-- Vacant billets should be searchable too.
-- The Position Explorer should allow browsing with **no search term**, starting from filters.
+- Who is this person?
+- What billet do they occupy?
+- What does this section look like?
+- Is this billet filled, vacant, or unknown?
+- What billets exist across the force for a given component, grade, MOS, AOC, state, or unit?
 
-### Display expectations
-- Directory results should emphasize the **person** first.
-- Section pages should use an **org chart style** display.
-- Every billet in the section should be shown.
-- Each billet must be clearly marked as:
-  - **Filled**
-  - **Vacant**
-  - **Unknown**
-- If multiple people are tied to one billet, show all and mark one as **primary**.
+## 7. Current product state
 
-### Data freshness
-- Daily refresh is acceptable.
-- MVP should show **current state only**.
-- Assignment history can come later.
+The following product surfaces are built and working end to end:
 
-### Platform expectations
-- Desktop-first for MVP.
-- Export/download is in scope for MVP.
+- **Search page** — section search and people search with tab toggle, results link to detail pages.
+- **Section detail page** — section metadata, every billet in the section, occupants with primary/secondary badges, status labels, CSV export button.
+- **Person detail page** — person metadata, all active assignments with billet and section context, links to section detail.
+- **Position explorer** — filter-first browsing by component, grade, branch, MOS, AOC, state, status, and organization. Table results with links to sections and people. CSV export button.
+- **CSV export** — positions export (full filtered set, no pagination cap beyond 10,000 rows) and section roster export (all billets with all occupants, one row per occupant).
 
-## 5. Organizational delivery constraints
+### Intentionally not built
 
-These are now **hard requirements**, not optional implementation choices:
+- **Standalone billet search** (`GET /api/billets/search`) — billets are already discoverable through the explorer (filter-based) and through section detail pages. A standalone billet text search was in the original API spec but adds limited product value given what the explorer already provides.
+- **Standalone billet detail page** (`GET /api/billets/{id}`) — every billet is fully rendered on its section detail page with all metadata and occupants. A standalone billet page would show the same data without section context.
+- **Unified search** (`GET /api/search?q=`) — the search page uses separate section and people search tabs. A unified endpoint that ranks across entity types is Phase 3 work. Separate searches are still clearer for now.
 
-- the application must follow your organization’s **Zarf + UDS** delivery model,
-- container images must be pushed to the organization’s **Azure Container Registry (ACR)**,
-- deployment should target a **Kubernetes environment** that can run the organization’s UDS-based application pattern,
-- the repo and deployment layout should align with how your organization already packages and deploys internal applications.
+These decisions can be revisited if the product loop reveals a real gap.
 
-This changes one important recommendation from the earlier thread:
+## 8. Product principles
 
-Green Pages should be treated as a **containerized Kubernetes application packaged for UDS**, not as a standalone App Service-first or Container Apps-first web app.
-
-## 6. MVP definition
-
-The MVP is:
-
-A **CAC-authenticated, desktop-first web application** where a soldier can:
-
-- search for a person,
-- search for a section like G-6 or S-3,
-- search for a billet,
-- search by organization name or alias,
-- browse Army-wide positions across components,
-- open a section and see the entire org chart,
-- view current billet status,
-- view available person/contact data,
-- export results.
-
-## 7. Day-one priorities
-
-### Priority 1: Directory
-This is the first thing that should feel useful.
-
-Key outcomes:
-- Find a person.
-- Find the right office.
-- Open the whole section.
-- Understand who occupies which billet.
-
-### Priority 2: Position Explorer
-This recreates and improves the lost Army Career Tracker-style exploration experience.
-
-Key outcomes:
-- Browse all positions by component.
-- Drill down by grade, MOS/AOC/branch, location, and organization.
-- View occupant when available.
-
-## 8. Suggested result screens
-
-### A. Person result
-Displays:
-- name
-- rank
-- duty title
-- office symbol if available
-- organization
-- staff section
-- contact details if available
-- billet status
-- UIC
-- paragraph
-- line
-- location
-- last refreshed date
-
-### B. Section result
-Displays:
-- section header (for example, `XVIII Airborne Corps G-6`)
-- org chart view
-- every billet in the section
-- occupant if available
-- billet status
-- billet metadata
-
-### C. Position Explorer result
-Displays:
-- billet title
-- grade
-- branch / MOS / AOC
-- component
-- organization
-- UIC
-- paragraph / line
-- location / state if available
-- occupant if available
-- status
-
-## 9. Product principles
-
-1. **Search should accept Army shorthand.**  
+1. **Search should accept Army shorthand.**
    Users should not be forced to type only official names.
 
-2. **The whole section is a first-class result.**  
+2. **The whole section is a first-class result.**
    The app should not reduce section searches to one person card.
 
-3. **Vacant and unknown are still valuable answers.**  
+3. **Vacant and unknown are still valuable answers.**
    A seat with no occupant is still part of the truth.
 
 4. **People data must sit on top of billet data, not replace it.**
 
-5. **The explorer must support curiosity and discovery.**  
+5. **The explorer must support curiosity and discovery.**
    It should be possible to browse positions even without a search term.
 
-6. **The delivery model must match the organization’s platform.**  
+6. **The delivery model must match the organization's platform.**
    The app should be designed from the beginning for ACR, Zarf, UDS, Helm, and Kubernetes-based deployment.
 
-## 10. External grounding for product assumptions
+7. **Older recommendations should not override newer repo reality.**
+   The codebase should move forward from the current working state, not from an earlier mental model.
 
-The thread decisions align with current official platform capabilities:
+## 9. Data freshness
 
-- IPPS-A documentation shows position-related search fields such as UIC, grade, MOS/AOC/POSCO, component grouping, and paragraph/line in job-opening workflows, which supports the idea that these are normal Army-facing search dimensions.[^1]
-- IPPS-A/AOS documentation states that AOS provides authoritative force-structure data to IPPS-A, which matches the idea of using a billet/organization model as the structural backbone.[^2]
-- Keycloak documentation covers X.509 client certificate authentication for browser flows and direct grant flows, which fits the CAC-authenticated application direction selected in this thread.[^3]
-- Standard React OIDC client libraries such as `react-oidc-context` support React SPA authentication with OIDC providers and redirect handling, which fits a Keycloak-backed frontend.[^4]
-- Zarf documentation describes Kubernetes deployment through Helm-backed packaging, which aligns with treating Green Pages as a packaged Kubernetes application instead of a simple website deployment.[^5]
-- UDS documentation describes UDS Packages as Zarf Packages containing OCI images, Helm charts, and supplemental Kubernetes manifests, which matches the organizational requirement to package applications through UDS.[^6]
+- Daily refresh is acceptable.
+- MVP shows current state only.
+- Assignment history is out of scope for MVP.
+- The ingestion pipeline from external sources (Vantage, AOS) has not been built yet and should not be built until the product loop proves the canonical model.
 
-## 11. Final product statement
+## 10. Final product statement
 
-**Green Pages is a CAC-authenticated Army directory and billet explorer that lets soldiers search people, sections, billets, and organizations, view full section-level org charts, and browse Army-wide positions across components using current billet, occupant, and force-structure data, packaged and deployed through the organization’s Zarf/UDS delivery model.**
-
----
-
-## Sources
-
-[^1]: IPPS-A, *Job Aid: Job Opening Search*, March 4, 2024. Available from IPPS-A official documentation: <https://ipps-a.army.mil/Portals/129/Documents/Job%20Aid_Job%20Opening%20Search_20240304.pdf>
-
-[^2]: IPPS-A, *How to Export AOS UICs and Billets*, March 5, 2024. Available from IPPS-A official documentation: <https://ipps-a.army.mil/Portals/129/Documents/How%20to%20Export%20AOS%20UICs%20and%20Billets_5MAR2024.pdf>
-
-[^3]: Keycloak documentation, *Server Administration Guide* — X.509 client certificate user authentication. <https://www.keycloak.org/docs/latest/server_admin/index.html>
-
-[^4]: `react-oidc-context` documentation. <https://github.com/authts/react-oidc-context>
-
-[^5]: Zarf docs, *Deploy a Package*. <https://docs.zarf.dev/ref/deploy/>
-
-[^6]: UDS docs, *UDS Packages*. <https://uds.defenseunicorns.com/structure/packages/>
+**Green Pages is a CAC-authenticated Army directory and billet explorer that lets soldiers search people, sections, billets, and organizations, view full section-level org charts, and browse Army-wide positions across components using current billet, occupant, and force-structure data, packaged and deployed through the organization's Zarf/UDS delivery model.**
