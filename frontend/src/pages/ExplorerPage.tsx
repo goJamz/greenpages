@@ -86,29 +86,28 @@ const aocOptions = [
   { value: '91A', label: '91A — Maintenance' },
 ]
 
-const pinnedOconusStateOptions = [
-  { value: 'AA', label: 'AA — Americas' },
-  { value: 'AE', label: 'AE — Europe' },
-  { value: 'AP', label: 'AP — Pacific' },
-]
+const oconusStateCodes = new Set(['AA', 'AE', 'AP'])
 
-const conusStateOptions = [
-  { value: 'AZ', label: 'AZ' },
-  { value: 'CA', label: 'CA' },
-  { value: 'CO', label: 'CO' },
-  { value: 'GA', label: 'GA' },
-  { value: 'HI', label: 'HI' },
-  { value: 'IL', label: 'IL' },
-  { value: 'KY', label: 'KY' },
-  { value: 'LA', label: 'LA' },
-  { value: 'MN', label: 'MN' },
-  { value: 'NC', label: 'NC' },
-  { value: 'NY', label: 'NY' },
-  { value: 'PA', label: 'PA' },
-  { value: 'TX', label: 'TX' },
-  { value: 'VA', label: 'VA' },
-  { value: 'WA', label: 'WA' },
-]
+const stateLabelMap = new Map<string, string>([
+  ['AA', 'AA — Americas'],
+  ['AE', 'AE — Europe'],
+  ['AP', 'AP — Pacific'],
+  ['AZ', 'AZ'],
+  ['CA', 'CA'],
+  ['CO', 'CO'],
+  ['GA', 'GA'],
+  ['HI', 'HI'],
+  ['IL', 'IL'],
+  ['KY', 'KY'],
+  ['LA', 'LA'],
+  ['MN', 'MN'],
+  ['NC', 'NC'],
+  ['NY', 'NY'],
+  ['PA', 'PA'],
+  ['TX', 'TX'],
+  ['VA', 'VA'],
+  ['WA', 'WA'],
+])
 
 // filterOptionsByAvailable narrows a static option array to only the values
 // the backend reports as available for the current filter combination.
@@ -129,39 +128,77 @@ function filterOptionsByAvailable(
   )
 }
 
-// buildAdditionalStateOptions surfaces backend-returned state codes that are
-// not already covered by the pinned OCONUS list or the known CONUS list.
-// This prevents unknown future codes from getting shoved into the wrong group.
-function buildAdditionalStateOptions(
+// buildVisibleStateGroups groups only the state/postal codes currently available
+// from the backend response. OCONUS codes are grouped by AA/AE/AP. Known CONUS
+// states stay in CONUS. Any future unknown code is surfaced under Additional.
+function buildVisibleStateGroups(
   availableValues: string[] | null,
   currentSelection: string,
-): { value: string; label: string }[] {
-  const knownStateCodes = new Set([
-    ...pinnedOconusStateOptions.map((option) => option.value),
-    ...conusStateOptions.map((option) => option.value),
-  ])
-  const additionalValues = new Set<string>()
-  const sortedAdditionalValues: string[] = []
+): {
+  oconus: { value: string; label: string }[]
+  conus: { value: string; label: string }[]
+  additional: { value: string; label: string }[]
+} {
+  let sourceValues: string[]
+  let uniqueValues: string[]
+  let seenValues: Set<string>
+  let index: number
+  let currentValue: string
+  let optionLabel: string
+  let knownStateCodes: Set<string>
+  let oconusOptions: { value: string; label: string }[]
+  let conusOptions: { value: string; label: string }[]
+  let additionalOptions: { value: string; label: string }[]
 
-  if (availableValues !== null) {
-    availableValues.forEach((stateValue) => {
-      if (stateValue !== '' && !knownStateCodes.has(stateValue)) {
-        additionalValues.add(stateValue)
-      }
-    })
+  if (availableValues === null) {
+    sourceValues = Array.from(stateLabelMap.keys())
+  } else {
+    sourceValues = [...availableValues]
   }
 
-  if (currentSelection !== '' && !knownStateCodes.has(currentSelection)) {
-    additionalValues.add(currentSelection)
+  if (currentSelection !== '' && !sourceValues.includes(currentSelection)) {
+    sourceValues.push(currentSelection)
   }
 
-  sortedAdditionalValues.push(...additionalValues)
-  sortedAdditionalValues.sort()
+  seenValues = new Set<string>()
+  uniqueValues = []
 
-  return sortedAdditionalValues.map((stateValue) => ({
-    value: stateValue,
-    label: stateValue,
-  }))
+  for (index = 0; index < sourceValues.length; index += 1) {
+    currentValue = sourceValues[index]
+
+    if (currentValue === '' || seenValues.has(currentValue)) {
+      continue
+    }
+
+    seenValues.add(currentValue)
+    uniqueValues.push(currentValue)
+  }
+
+  uniqueValues.sort()
+
+  knownStateCodes = new Set(Array.from(stateLabelMap.keys()))
+  oconusOptions = []
+  conusOptions = []
+  additionalOptions = []
+
+  for (index = 0; index < uniqueValues.length; index += 1) {
+    currentValue = uniqueValues[index]
+    optionLabel = stateLabelMap.get(currentValue) || currentValue
+
+    if (oconusStateCodes.has(currentValue)) {
+      oconusOptions.push({ value: currentValue, label: optionLabel })
+    } else if (knownStateCodes.has(currentValue)) {
+      conusOptions.push({ value: currentValue, label: optionLabel })
+    } else {
+      additionalOptions.push({ value: currentValue, label: optionLabel })
+    }
+  }
+
+  return {
+    oconus: oconusOptions,
+    conus: conusOptions,
+    additional: additionalOptions,
+  }
 }
 
 function ExplorerPage() {
@@ -200,6 +237,7 @@ function ExplorerPage() {
             aoc: aocParam,
             state: stateParam,
             status: statusParam,
+            organization: '',
           },
           100,
           0,
@@ -276,6 +314,7 @@ function ExplorerPage() {
       aoc: aocParam,
       state: stateParam,
       status: statusParam,
+      organization: '',
     })
 
     window.location.assign(exportURL)
@@ -331,17 +370,8 @@ function ExplorerPage() {
     aocParam,
   )
 
-  // AA / AE / AP stay pinned and visible by design.
-  const visiblePinnedOconusStateOptions = pinnedOconusStateOptions
-
-  const visibleConusStateOptions = filterOptionsByAvailable(
-    conusStateOptions,
-    availableOptions?.states ?? null,
-    stateParam,
-  )
-
-  const visibleAdditionalStateOptions = useMemo(
-    () => buildAdditionalStateOptions(availableOptions?.states ?? null, stateParam),
+  const visibleStateGroups = useMemo(
+    () => buildVisibleStateGroups(availableOptions?.states ?? null, stateParam),
     [availableOptions, stateParam],
   )
 
@@ -509,23 +539,25 @@ function ExplorerPage() {
                 >
                   <option value="">All</option>
 
-                  <optgroup label="OCONUS">
-                    {visiblePinnedOconusStateOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </optgroup>
-
-                  {visibleConusStateOptions.length > 0 ? (
-                    <optgroup label="CONUS">
-                      {visibleConusStateOptions.map((option) => (
+                  {visibleStateGroups.oconus.length > 0 ? (
+                    <optgroup label="OCONUS">
+                      {visibleStateGroups.oconus.map((option) => (
                         <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </optgroup>
                   ) : null}
 
-                  {visibleAdditionalStateOptions.length > 0 ? (
+                  {visibleStateGroups.conus.length > 0 ? (
+                    <optgroup label="CONUS">
+                      {visibleStateGroups.conus.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+
+                  {visibleStateGroups.additional.length > 0 ? (
                     <optgroup label="Additional">
-                      {visibleAdditionalStateOptions.map((option) => (
+                      {visibleStateGroups.additional.map((option) => (
                         <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </optgroup>
