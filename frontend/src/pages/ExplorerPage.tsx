@@ -7,42 +7,95 @@ import {
   type ExplorerPositionResult,
 } from '../api/greenpages'
 
-const componentOptions = ['Active', 'Guard', 'Reserve']
+const officerGradeOptions = [
+  { value: 'COL', label: 'COL' },
+  { value: 'LTC', label: 'LTC' },
+  { value: 'MAJ', label: 'MAJ' },
+  { value: 'CPT', label: 'CPT' },
+]
 
-const statusOptions = ['filled', 'vacant', 'unknown']
+const warrantOfficerGradeOptions = [
+  { value: 'CW3', label: 'CW3' },
+]
 
-const gradeOptions = ['COL', 'CPT', 'LTC', 'MAJ', 'MSG', 'SFC', 'SGM', 'SSG']
+const enlistedGradeOptions = [
+  { value: 'SGM', label: 'SGM' },
+  { value: 'MSG', label: 'MSG' },
+  { value: 'SFC', label: 'SFC' },
+  { value: 'SSG', label: 'SSG' },
+]
 
-const branchOptions = ['AG', 'AR', 'AV', 'CY', 'EN', 'FA', 'IN', 'LG', 'MI', 'MS', 'OD', 'SC']
+const branchOptions = [
+  { value: 'AG', label: 'AG — Adjutant General' },
+  { value: 'AR', label: 'AR — Armor' },
+  { value: 'AV', label: 'AV — Aviation' },
+  { value: 'CY', label: 'CY — Cyber' },
+  { value: 'EN', label: 'EN — Engineer' },
+  { value: 'FA', label: 'FA — Field Artillery' },
+  { value: 'IN', label: 'IN — Infantry' },
+  { value: 'LG', label: 'LG — Logistics' },
+  { value: 'MI', label: 'MI — Military Intelligence' },
+  { value: 'MS', label: 'MS — Medical Service' },
+  { value: 'OD', label: 'OD — Ordnance' },
+  { value: 'SC', label: 'SC — Signal' },
+]
 
-const mosOptions = ['11B', '11Z', '12B', '13Z', '19Z', '25B', '25D', '25S', '25U', '35F', '35N', '42A', '92A', '92Y']
+const mosOptions = [
+  { value: '11B', label: '11B — Infantryman' },
+  { value: '11Z', label: '11Z — Infantry Senior Sergeant' },
+  { value: '12B', label: '12B — Combat Engineer' },
+  { value: '13Z', label: '13Z — Field Artillery Senior Sergeant' },
+  { value: '19Z', label: '19Z — Armor Senior Sergeant' },
+  { value: '25B', label: '25B — IT Specialist' },
+  { value: '25D', label: '25D — Cyber Network Defender' },
+  { value: '25S', label: '25S — SATCOM Operator' },
+  { value: '25U', label: '25U — Signal Support Specialist' },
+  { value: '35F', label: '35F — Intelligence Analyst' },
+  { value: '35N', label: '35N — SIGINT Analyst' },
+  { value: '42A', label: '42A — Human Resources Specialist' },
+  { value: '92A', label: '92A — Automated Logistical Specialist' },
+  { value: '92Y', label: '92Y — Unit Supply Specialist' },
+]
 
-const aocOptions = ['11A', '12A', '13A', '15A', '17A', '19A', '25A', '35A', '42A', '59A', '70A', '90A', '91A']
+const aocOptions = [
+  { value: '11A', label: '11A — Infantry' },
+  { value: '12A', label: '12A — Engineer' },
+  { value: '13A', label: '13A — Field Artillery' },
+  { value: '15A', label: '15A — Aviation' },
+  { value: '17A', label: '17A — Cyber Operations' },
+  { value: '19A', label: '19A — Armor' },
+  { value: '25A', label: '25A — Signal' },
+  { value: '35A', label: '35A — Military Intelligence' },
+  { value: '42A', label: '42A — Adjutant General' },
+  { value: '59A', label: '59A — Strategic Plans and Policy' },
+  { value: '70A', label: '70A — Health Services Administration' },
+  { value: '90A', label: '90A — Logistics' },
+  { value: '91A', label: '91A — Maintenance' },
+]
 
-const rawStateOptions = ['AZ', 'CA', 'CO', 'GA', 'HI', 'IL', 'KY', 'LA', 'MN', 'NC', 'NY', 'PA', 'TX', 'VA', 'WA']
+const overseasStateOptions = [
+  { value: 'AA', label: 'AA — Americas' },
+  { value: 'AE', label: 'AE — Europe' },
+  { value: 'AP', label: 'AP — Pacific' },
+]
 
-function sortStateOptions(stateValues: string[]) {
-  const priorityStateCodes = ['AA', 'AE', 'AP']
-  const normalizedPriorityStateCodes = new Set(priorityStateCodes)
-  const prioritizedStateCodes: string[] = []
-  const standardStateCodes: string[] = []
-
-  stateValues.forEach((stateValue) => {
-    if (normalizedPriorityStateCodes.has(stateValue)) {
-      prioritizedStateCodes.push(stateValue)
-      return
-    }
-
-    standardStateCodes.push(stateValue)
-  })
-
-  prioritizedStateCodes.sort()
-  standardStateCodes.sort()
-
-  return [...prioritizedStateCodes, ...standardStateCodes]
-}
-
-const stateOptions = sortStateOptions(rawStateOptions)
+const conusStateOptions = [
+  { value: 'AZ', label: 'AZ' },
+  { value: 'CA', label: 'CA' },
+  { value: 'CO', label: 'CO' },
+  { value: 'GA', label: 'GA' },
+  { value: 'HI', label: 'HI' },
+  { value: 'IL', label: 'IL' },
+  { value: 'KY', label: 'KY' },
+  { value: 'LA', label: 'LA' },
+  { value: 'MN', label: 'MN' },
+  { value: 'NC', label: 'NC' },
+  { value: 'NY', label: 'NY' },
+  { value: 'PA', label: 'PA' },
+  { value: 'TX', label: 'TX' },
+  { value: 'VA', label: 'VA' },
+  { value: 'WA', label: 'WA' },
+]
 
 function renderStatusBadge(status: string) {
   let badgeClasses: string // Tailwind classes used to color the badge.
@@ -248,7 +301,7 @@ function ExplorerPage() {
 
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
                 Browse billets across the force. Use filters to narrow by component, grade,
-                branch, MOS, AOC, and state.
+                branch, MOS, AOC, state, or status.
               </p>
             </div>
 
@@ -275,11 +328,9 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  {componentOptions.map((componentOption) => (
-                    <option key={componentOption} value={componentOption}>
-                      {componentOption}
-                    </option>
-                  ))}
+                  <option value="Active">Active</option>
+                  <option value="Guard">Guard</option>
+                  <option value="Reserve">Reserve</option>
                 </select>
               </div>
 
@@ -294,11 +345,9 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  {statusOptions.map((statusOption) => (
-                    <option key={statusOption} value={statusOption}>
-                      {statusOption.charAt(0).toUpperCase() + statusOption.slice(1)}
-                    </option>
-                  ))}
+                  <option value="filled">Filled</option>
+                  <option value="vacant">Vacant</option>
+                  <option value="unknown">Unknown</option>
                 </select>
               </div>
 
@@ -313,11 +362,21 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  {gradeOptions.map((gradeOption) => (
-                    <option key={gradeOption} value={gradeOption}>
-                      {gradeOption}
-                    </option>
-                  ))}
+                  <optgroup label="Officer">
+                    {officerGradeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Warrant Officer">
+                    {warrantOfficerGradeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Enlisted">
+                    {enlistedGradeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
 
@@ -332,10 +391,8 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  {branchOptions.map((branchOption) => (
-                    <option key={branchOption} value={branchOption}>
-                      {branchOption}
-                    </option>
+                  {branchOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
               </div>
@@ -351,10 +408,8 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  {mosOptions.map((mosOption) => (
-                    <option key={mosOption} value={mosOption}>
-                      {mosOption}
-                    </option>
+                  {mosOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
               </div>
@@ -370,10 +425,8 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  {aocOptions.map((aocOption) => (
-                    <option key={aocOption} value={aocOption}>
-                      {aocOption}
-                    </option>
+                  {aocOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
               </div>
@@ -389,11 +442,16 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  {stateOptions.map((stateOption) => (
-                    <option key={stateOption} value={stateOption}>
-                      {stateOption}
-                    </option>
-                  ))}
+                  <optgroup label="Overseas">
+                    {overseasStateOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="CONUS">
+                    {conusStateOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
             </div>
