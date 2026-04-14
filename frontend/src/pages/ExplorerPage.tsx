@@ -7,6 +7,43 @@ import {
   type ExplorerPositionResult,
 } from '../api/greenpages'
 
+const componentOptions = ['Active', 'Guard', 'Reserve']
+
+const statusOptions = ['filled', 'vacant', 'unknown']
+
+const gradeOptions = ['COL', 'CPT', 'LTC', 'MAJ', 'MSG', 'SFC', 'SGM', 'SSG']
+
+const branchOptions = ['AG', 'AR', 'AV', 'CY', 'EN', 'FA', 'IN', 'LG', 'MI', 'MS', 'OD', 'SC']
+
+const mosOptions = ['11B', '11Z', '12B', '13Z', '19Z', '25B', '25D', '25S', '25U', '35F', '35N', '42A', '92A', '92Y']
+
+const aocOptions = ['11A', '12A', '13A', '15A', '17A', '19A', '25A', '35A', '42A', '59A', '70A', '90A', '91A']
+
+const rawStateOptions = ['AZ', 'CA', 'CO', 'GA', 'HI', 'IL', 'KY', 'LA', 'MN', 'NC', 'NY', 'PA', 'TX', 'VA', 'WA']
+
+function sortStateOptions(stateValues: string[]) {
+  const priorityStateCodes = ['AA', 'AE', 'AP']
+  const normalizedPriorityStateCodes = new Set(priorityStateCodes)
+  const prioritizedStateCodes: string[] = []
+  const standardStateCodes: string[] = []
+
+  stateValues.forEach((stateValue) => {
+    if (normalizedPriorityStateCodes.has(stateValue)) {
+      prioritizedStateCodes.push(stateValue)
+      return
+    }
+
+    standardStateCodes.push(stateValue)
+  })
+
+  prioritizedStateCodes.sort()
+  standardStateCodes.sort()
+
+  return [...prioritizedStateCodes, ...standardStateCodes]
+}
+
+const stateOptions = sortStateOptions(rawStateOptions)
+
 function renderStatusBadge(status: string) {
   let badgeClasses: string // Tailwind classes used to color the badge.
 
@@ -35,7 +72,6 @@ function ExplorerPage() {
   const aocParam = searchParams.get('aoc') || ''
   const stateParam = searchParams.get('state') || ''
   const statusParam = searchParams.get('status') || ''
-  const organizationParam = searchParams.get('organization') || ''
 
   const [componentInput, setComponentInput] = useState(componentParam)
   const [gradeInput, setGradeInput] = useState(gradeParam)
@@ -44,7 +80,6 @@ function ExplorerPage() {
   const [aocInput, setAocInput] = useState(aocParam)
   const [stateInput, setStateInput] = useState(stateParam)
   const [statusInput, setStatusInput] = useState(statusParam)
-  const [organizationInput, setOrganizationInput] = useState(organizationParam)
 
   const [results, setResults] = useState<ExplorerPositionResult[]>([])
   const [resultCount, setResultCount] = useState(0)
@@ -59,7 +94,6 @@ function ExplorerPage() {
     setAocInput(aocParam)
     setStateInput(stateParam)
     setStatusInput(statusParam)
-    setOrganizationInput(organizationParam)
   }, [
     componentParam,
     gradeParam,
@@ -68,7 +102,6 @@ function ExplorerPage() {
     aocParam,
     stateParam,
     statusParam,
-    organizationParam,
   ])
 
   useEffect(() => {
@@ -90,7 +123,6 @@ function ExplorerPage() {
             aoc: aocParam,
             state: stateParam,
             status: statusParam,
-            organization: organizationParam,
           },
           100,
           0,
@@ -131,7 +163,6 @@ function ExplorerPage() {
     aocParam,
     stateParam,
     statusParam,
-    organizationParam,
   ])
 
   function handleFilterSubmit(formEvent: FormEvent<HTMLFormElement>) {
@@ -169,10 +200,6 @@ function ExplorerPage() {
       nextSearchParams.set('status', statusInput.trim())
     }
 
-    if (organizationInput.trim() !== '') {
-      nextSearchParams.set('organization', organizationInput.trim())
-    }
-
     setSearchParams(nextSearchParams)
   }
 
@@ -191,7 +218,6 @@ function ExplorerPage() {
       aoc: aocParam,
       state: stateParam,
       status: statusParam,
-      organization: organizationParam,
     })
 
     window.location.assign(exportURL)
@@ -204,8 +230,7 @@ function ExplorerPage() {
     mosParam !== '' ||
     aocParam !== '' ||
     stateParam !== '' ||
-    statusParam !== '' ||
-    organizationParam !== ''
+    statusParam !== ''
 
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
@@ -223,7 +248,7 @@ function ExplorerPage() {
 
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
                 Browse billets across the force. Use filters to narrow by component, grade,
-                branch, MOS, AOC, state, status, or organization.
+                branch, MOS, AOC, and state.
               </p>
             </div>
 
@@ -238,7 +263,7 @@ function ExplorerPage() {
           </div>
 
           <form className="mt-6" onSubmit={handleFilterSubmit}>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
               <div>
                 <label htmlFor="filter-component" className="block text-xs font-semibold text-slate-500">
                   Component
@@ -250,9 +275,11 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  <option value="Active">Active</option>
-                  <option value="Guard">Guard</option>
-                  <option value="Reserve">Reserve</option>
+                  {componentOptions.map((componentOption) => (
+                    <option key={componentOption} value={componentOption}>
+                      {componentOption}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -267,9 +294,11 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  <option value="filled">Filled</option>
-                  <option value="vacant">Vacant</option>
-                  <option value="unknown">Unknown</option>
+                  {statusOptions.map((statusOption) => (
+                    <option key={statusOption} value={statusOption}>
+                      {statusOption.charAt(0).toUpperCase() + statusOption.slice(1)}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -277,84 +306,95 @@ function ExplorerPage() {
                 <label htmlFor="filter-grade" className="block text-xs font-semibold text-slate-500">
                   Grade
                 </label>
-                <input
+                <select
                   id="filter-grade"
-                  type="text"
                   value={gradeInput}
                   onChange={(changeEvent) => setGradeInput(changeEvent.target.value)}
-                  placeholder="e.g. COL"
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-500"
-                />
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
+                >
+                  <option value="">All</option>
+                  {gradeOptions.map((gradeOption) => (
+                    <option key={gradeOption} value={gradeOption}>
+                      {gradeOption}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
                 <label htmlFor="filter-branch" className="block text-xs font-semibold text-slate-500">
                   Branch
                 </label>
-                <input
+                <select
                   id="filter-branch"
-                  type="text"
                   value={branchInput}
                   onChange={(changeEvent) => setBranchInput(changeEvent.target.value)}
-                  placeholder="e.g. SC"
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-500"
-                />
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
+                >
+                  <option value="">All</option>
+                  {branchOptions.map((branchOption) => (
+                    <option key={branchOption} value={branchOption}>
+                      {branchOption}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
                 <label htmlFor="filter-mos" className="block text-xs font-semibold text-slate-500">
                   MOS
                 </label>
-                <input
+                <select
                   id="filter-mos"
-                  type="text"
                   value={mosInput}
                   onChange={(changeEvent) => setMosInput(changeEvent.target.value)}
-                  placeholder="e.g. 25B"
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-500"
-                />
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
+                >
+                  <option value="">All</option>
+                  {mosOptions.map((mosOption) => (
+                    <option key={mosOption} value={mosOption}>
+                      {mosOption}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
                 <label htmlFor="filter-aoc" className="block text-xs font-semibold text-slate-500">
                   AOC
                 </label>
-                <input
+                <select
                   id="filter-aoc"
-                  type="text"
                   value={aocInput}
                   onChange={(changeEvent) => setAocInput(changeEvent.target.value)}
-                  placeholder="e.g. 25A"
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-500"
-                />
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
+                >
+                  <option value="">All</option>
+                  {aocOptions.map((aocOption) => (
+                    <option key={aocOption} value={aocOption}>
+                      {aocOption}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
                 <label htmlFor="filter-state" className="block text-xs font-semibold text-slate-500">
                   State
                 </label>
-                <input
+                <select
                   id="filter-state"
-                  type="text"
                   value={stateInput}
                   onChange={(changeEvent) => setStateInput(changeEvent.target.value)}
-                  placeholder="e.g. NC"
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="filter-organization" className="block text-xs font-semibold text-slate-500">
-                  Organization
-                </label>
-                <input
-                  id="filter-organization"
-                  type="text"
-                  value={organizationInput}
-                  onChange={(changeEvent) => setOrganizationInput(changeEvent.target.value)}
-                  placeholder="e.g. NETCOM"
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-500"
-                />
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
+                >
+                  <option value="">All</option>
+                  {stateOptions.map((stateOption) => (
+                    <option key={stateOption} value={stateOption}>
+                      {stateOption}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
