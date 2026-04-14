@@ -159,11 +159,22 @@ export type ExplorerPositionResult = {
   primary_person_rank: string
 }
 
+export type ExplorerAvailableOptions = {
+  components: string[]
+  grades: string[]
+  branches: string[]
+  mos_codes: string[]
+  aoc_codes: string[]
+  states: string[]
+  statuses: string[]
+}
+
 export type ExplorerPositionsResponse = {
   filters: ExplorerPositionFilters
   count: number
   limit: number
   offset: number
+  available_options: ExplorerAvailableOptions
   results: ExplorerPositionResult[]
 }
 

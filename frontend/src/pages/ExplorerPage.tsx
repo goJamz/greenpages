@@ -3,9 +3,27 @@ import { Link, useSearchParams } from 'react-router'
 import {
   buildExportPositionsURL,
   getExplorerPositions,
+  type ExplorerAvailableOptions,
   type ExplorerPositionResult,
 } from '../api/greenpages'
 import { renderStatusBadge } from '../components/StatusBadge'
+
+type SelectOption = {
+  value: string
+  label: string
+}
+
+const componentOptions = [
+  { value: 'Active', label: 'Active' },
+  { value: 'Guard', label: 'Guard' },
+  { value: 'Reserve', label: 'Reserve' },
+]
+
+const statusOptions = [
+  { value: 'filled', label: 'Filled' },
+  { value: 'vacant', label: 'Vacant' },
+  { value: 'unknown', label: 'Unknown' },
+]
 
 const officerGradeOptions = [
   { value: 'COL', label: 'COL' },
@@ -23,6 +41,12 @@ const enlistedGradeOptions = [
   { value: 'MSG', label: 'MSG' },
   { value: 'SFC', label: 'SFC' },
   { value: 'SSG', label: 'SSG' },
+]
+
+const allKnownGradeOptions = [
+  ...officerGradeOptions,
+  ...warrantOfficerGradeOptions,
+  ...enlistedGradeOptions,
 ]
 
 const branchOptions = [
@@ -97,6 +121,69 @@ const conusStateOptions = [
   { value: 'WA', label: 'WA' },
 ]
 
+const allKnownStateOptions = [
+  ...overseasStateOptions,
+  ...conusStateOptions,
+]
+
+function buildAvailableOptions(
+  staticOptions: SelectOption[],
+  availableValues: string[] | null,
+  selectedValue: string,
+): SelectOption[] {
+  const availableValueSet = new Set(availableValues ?? [])
+  const selectedValuePresent = selectedValue.trim() !== ''
+  const knownValueSet = new Set(staticOptions.map((option) => option.value))
+  const filteredOptions = staticOptions.filter((option) => {
+    if (availableValueSet.has(option.value)) {
+      return true
+    }
+
+    if (selectedValuePresent && option.value === selectedValue) {
+      return true
+    }
+
+    return availableValues === null
+  })
+  const unknownOptions = (availableValues ?? [])
+    .filter((value) => !knownValueSet.has(value))
+    .sort()
+    .map((value) => ({ value, label: value }))
+
+  if (
+    selectedValuePresent &&
+    !knownValueSet.has(selectedValue) &&
+    !unknownOptions.some((option) => option.value === selectedValue)
+  ) {
+    unknownOptions.unshift({ value: selectedValue, label: selectedValue })
+  }
+
+  return [...filteredOptions, ...unknownOptions]
+}
+
+function buildUnknownOptions(
+  knownOptions: SelectOption[],
+  availableValues: string[] | null,
+  selectedValue: string,
+): SelectOption[] {
+  const knownValueSet = new Set(knownOptions.map((option) => option.value))
+  const selectedValuePresent = selectedValue.trim() !== ''
+  const unknownOptions = (availableValues ?? [])
+    .filter((value) => !knownValueSet.has(value))
+    .sort()
+    .map((value) => ({ value, label: value }))
+
+  if (
+    selectedValuePresent &&
+    !knownValueSet.has(selectedValue) &&
+    !unknownOptions.some((option) => option.value === selectedValue)
+  ) {
+    unknownOptions.unshift({ value: selectedValue, label: selectedValue })
+  }
+
+  return unknownOptions
+}
+
 function ExplorerPage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -110,6 +197,7 @@ function ExplorerPage() {
 
   const [results, setResults] = useState<ExplorerPositionResult[]>([])
   const [resultCount, setResultCount] = useState(0)
+  const [availableOptions, setAvailableOptions] = useState<ExplorerAvailableOptions | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
 
@@ -140,11 +228,13 @@ function ExplorerPage() {
         if (!isCancelled) {
           setResults(explorerResponse.results)
           setResultCount(explorerResponse.count)
+          setAvailableOptions(explorerResponse.available_options)
         }
       } catch (fetchError) {
         if (!isCancelled) {
           setResults([])
           setResultCount(0)
+          setAvailableOptions(null)
 
           if (fetchError instanceof Error) {
             setErrorMessage(fetchError.message)
@@ -220,6 +310,19 @@ function ExplorerPage() {
     stateParam !== '' ||
     statusParam !== ''
 
+  const availableComponentOptions = buildAvailableOptions(componentOptions, availableOptions?.components ?? null, componentParam)
+  const availableStatusOptions = buildAvailableOptions(statusOptions, availableOptions?.statuses ?? null, statusParam)
+  const availableOfficerGradeOptions = buildAvailableOptions(officerGradeOptions, availableOptions?.grades ?? null, gradeParam)
+  const availableWarrantOfficerGradeOptions = buildAvailableOptions(warrantOfficerGradeOptions, availableOptions?.grades ?? null, gradeParam)
+  const availableEnlistedGradeOptions = buildAvailableOptions(enlistedGradeOptions, availableOptions?.grades ?? null, gradeParam)
+  const availableOtherGradeOptions = buildUnknownOptions(allKnownGradeOptions, availableOptions?.grades ?? null, gradeParam)
+  const availableBranchOptions = buildAvailableOptions(branchOptions, availableOptions?.branches ?? null, branchParam)
+  const availableMOSOptions = buildAvailableOptions(mosOptions, availableOptions?.mos_codes ?? null, mosParam)
+  const availableAOCOptions = buildAvailableOptions(aocOptions, availableOptions?.aoc_codes ?? null, aocParam)
+  const availableOverseasStateOptions = buildAvailableOptions(overseasStateOptions, availableOptions?.states ?? null, stateParam)
+  const availableConusStateOptions = buildAvailableOptions(conusStateOptions, availableOptions?.states ?? null, stateParam)
+  const availableOtherStateOptions = buildUnknownOptions(allKnownStateOptions, availableOptions?.states ?? null, stateParam)
+
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-10 sm:px-6 lg:px-8">
@@ -235,7 +338,7 @@ function ExplorerPage() {
               </h1>
 
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                Browse billets across the force. Filters apply automatically as you change them.
+                Browse billets across the force. Filters apply automatically, and available options update as you narrow results.
               </p>
             </div>
 
@@ -262,9 +365,9 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  <option value="Active">Active</option>
-                  <option value="Guard">Guard</option>
-                  <option value="Reserve">Reserve</option>
+                  {availableComponentOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
                 </select>
               </div>
 
@@ -279,9 +382,9 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  <option value="filled">Filled</option>
-                  <option value="vacant">Vacant</option>
-                  <option value="unknown">Unknown</option>
+                  {availableStatusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
                 </select>
               </div>
 
@@ -296,21 +399,34 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  <optgroup label="Officer">
-                    {officerGradeOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Warrant Officer">
-                    {warrantOfficerGradeOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Enlisted">
-                    {enlistedGradeOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </optgroup>
+                  {availableOfficerGradeOptions.length > 0 ? (
+                    <optgroup label="Officer">
+                      {availableOfficerGradeOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+                  {availableWarrantOfficerGradeOptions.length > 0 ? (
+                    <optgroup label="Warrant Officer">
+                      {availableWarrantOfficerGradeOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+                  {availableEnlistedGradeOptions.length > 0 ? (
+                    <optgroup label="Enlisted">
+                      {availableEnlistedGradeOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+                  {availableOtherGradeOptions.length > 0 ? (
+                    <optgroup label="Other">
+                      {availableOtherGradeOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </optgroup>
+                  ) : null}
                 </select>
               </div>
 
@@ -325,7 +441,7 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  {branchOptions.map((option) => (
+                  {availableBranchOptions.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
@@ -342,7 +458,7 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  {mosOptions.map((option) => (
+                  {availableMOSOptions.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
@@ -359,7 +475,7 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  {aocOptions.map((option) => (
+                  {availableAOCOptions.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
@@ -376,16 +492,27 @@ function ExplorerPage() {
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
-                  <optgroup label="OCONUS">
-                    {overseasStateOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="CONUS">
-                    {conusStateOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </optgroup>
+                  {availableOverseasStateOptions.length > 0 ? (
+                    <optgroup label="OCONUS">
+                      {availableOverseasStateOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+                  {availableConusStateOptions.length > 0 ? (
+                    <optgroup label="CONUS">
+                      {availableConusStateOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+                  {availableOtherStateOptions.length > 0 ? (
+                    <optgroup label="Other">
+                      {availableOtherStateOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </optgroup>
+                  ) : null}
                 </select>
               </div>
             </div>
