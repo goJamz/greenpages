@@ -97,15 +97,6 @@ const conusStateOptions = [
   { value: 'WA', label: 'WA' },
 ]
 
-type ExplorerFilterName =
-  | 'component'
-  | 'grade'
-  | 'branch'
-  | 'mos'
-  | 'aoc'
-  | 'state'
-  | 'status'
-
 function ExplorerPage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -183,20 +174,21 @@ function ExplorerPage() {
     statusParam,
   ])
 
-  function handleFilterChange(filterName: ExplorerFilterName, filterValue: string) {
-    let nextSearchParams: URLSearchParams // Next URL search params with the updated filter value.
-    let trimmedFilterValue: string // Filter value with surrounding whitespace removed.
+  function setFilterParam(filterKey: string, filterValue: string) {
+    setSearchParams((previousParams) => {
+      let nextParams: URLSearchParams = new URLSearchParams(previousParams) // Cloned params with one filter updated.
+      let trimmedFilterValue: string // Filter value with surrounding whitespace removed.
 
-    nextSearchParams = new URLSearchParams(searchParams)
-    trimmedFilterValue = filterValue.trim()
+      trimmedFilterValue = filterValue.trim()
 
-    if (trimmedFilterValue === '') {
-      nextSearchParams.delete(filterName)
-    } else {
-      nextSearchParams.set(filterName, trimmedFilterValue)
-    }
+      if (trimmedFilterValue === '') {
+        nextParams.delete(filterKey)
+      } else {
+        nextParams.set(filterKey, trimmedFilterValue)
+      }
 
-    setSearchParams(nextSearchParams)
+      return nextParams
+    })
   }
 
   function handleClearFilters() {
@@ -266,7 +258,7 @@ function ExplorerPage() {
                 <select
                   id="filter-component"
                   value={componentParam}
-                  onChange={(changeEvent) => handleFilterChange('component', changeEvent.target.value)}
+                  onChange={(changeEvent) => setFilterParam('component', changeEvent.target.value)}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
@@ -283,7 +275,7 @@ function ExplorerPage() {
                 <select
                   id="filter-status"
                   value={statusParam}
-                  onChange={(changeEvent) => handleFilterChange('status', changeEvent.target.value)}
+                  onChange={(changeEvent) => setFilterParam('status', changeEvent.target.value)}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
@@ -300,7 +292,7 @@ function ExplorerPage() {
                 <select
                   id="filter-grade"
                   value={gradeParam}
-                  onChange={(changeEvent) => handleFilterChange('grade', changeEvent.target.value)}
+                  onChange={(changeEvent) => setFilterParam('grade', changeEvent.target.value)}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
@@ -329,7 +321,7 @@ function ExplorerPage() {
                 <select
                   id="filter-branch"
                   value={branchParam}
-                  onChange={(changeEvent) => handleFilterChange('branch', changeEvent.target.value)}
+                  onChange={(changeEvent) => setFilterParam('branch', changeEvent.target.value)}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
@@ -346,7 +338,7 @@ function ExplorerPage() {
                 <select
                   id="filter-mos"
                   value={mosParam}
-                  onChange={(changeEvent) => handleFilterChange('mos', changeEvent.target.value)}
+                  onChange={(changeEvent) => setFilterParam('mos', changeEvent.target.value)}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
@@ -363,7 +355,7 @@ function ExplorerPage() {
                 <select
                   id="filter-aoc"
                   value={aocParam}
-                  onChange={(changeEvent) => handleFilterChange('aoc', changeEvent.target.value)}
+                  onChange={(changeEvent) => setFilterParam('aoc', changeEvent.target.value)}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
@@ -380,7 +372,7 @@ function ExplorerPage() {
                 <select
                   id="filter-state"
                   value={stateParam}
-                  onChange={(changeEvent) => handleFilterChange('state', changeEvent.target.value)}
+                  onChange={(changeEvent) => setFilterParam('state', changeEvent.target.value)}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   <option value="">All</option>
@@ -398,8 +390,8 @@ function ExplorerPage() {
               </div>
             </div>
 
-            <div className="mt-4 flex items-center gap-3">
-              {hasActiveFilters ? (
+            {hasActiveFilters ? (
+              <div className="mt-4">
                 <button
                   type="button"
                   onClick={handleClearFilters}
@@ -407,14 +399,8 @@ function ExplorerPage() {
                 >
                   Clear all
                 </button>
-              ) : (
-                <span className="text-sm text-slate-500">Showing all positions.</span>
-              )}
-
-              {isLoading ? (
-                <span className="text-sm text-slate-500">Refreshing results…</span>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
           </div>
 
           {errorMessage !== '' ? (
