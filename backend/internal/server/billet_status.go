@@ -15,9 +15,7 @@ const (
 // normalizeBilletStatus converts stored database values into API display values.
 // Any unrecognized value is treated as Unknown.
 func normalizeBilletStatus(rawStatus string) string {
-	var loweredStatus string // Lowercased billet status from the database.
-
-	loweredStatus = strings.ToLower(strings.TrimSpace(rawStatus))
+	var loweredStatus = strings.ToLower(strings.TrimSpace(rawStatus)) // Lowercased billet status from the database.
 
 	switch loweredStatus {
 	case billetStatusFilledValue:
