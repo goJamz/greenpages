@@ -93,10 +93,10 @@ ORDER BY
         ELSE 9
     END,
     CASE echelon
-        WHEN 'Corps' THEN 1
-        WHEN 'Command' THEN 2
-        WHEN 'Division' THEN 3
-        ELSE 4
+        WHEN 'Corps'    THEN 1
+        WHEN 'Division' THEN 2
+        WHEN 'Command'  THEN 3
+        ELSE                 4
     END,
     organization_name ASC,
     display_name ASC
