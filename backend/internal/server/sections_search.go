@@ -61,6 +61,16 @@ WHERE
     OR (norm_org_short || norm_code) LIKE '%' || $1 || '%'
     OR (norm_org || norm_display) LIKE '%' || $1 || '%'
     OR (norm_org_short || norm_display) LIKE '%' || $1 || '%'
+    OR EXISTS (
+        SELECT 1
+        FROM organization_aliases oa
+        WHERE oa.organization_id = searchable.organization_id
+          AND (
+              oa.normalized_alias_text LIKE '%' || $1 || '%'
+              OR (oa.normalized_alias_text || searchable.norm_code) LIKE '%' || $1 || '%'
+              OR (oa.normalized_alias_text || searchable.norm_display) LIKE '%' || $1 || '%'
+          )
+    )
 ORDER BY
     CASE
         WHEN norm_code = $1 THEN 1
@@ -70,7 +80,17 @@ ORDER BY
         WHEN (norm_org_short || norm_code) = $1 THEN 5
         WHEN (norm_org || norm_display) = $1 THEN 6
         WHEN (norm_org_short || norm_display) = $1 THEN 7
-        ELSE 8
+        WHEN EXISTS (
+            SELECT 1
+            FROM organization_aliases oa
+            WHERE oa.organization_id = searchable.organization_id
+              AND (
+                  oa.normalized_alias_text = $1
+                  OR (oa.normalized_alias_text || searchable.norm_code) = $1
+                  OR (oa.normalized_alias_text || searchable.norm_display) = $1
+              )
+        ) THEN 8
+        ELSE 9
     END,
     CASE echelon
         WHEN 'Corps'    THEN 1
