@@ -16,6 +16,11 @@ var alphaNumericPattern = regexp.MustCompile(`[^a-z0-9]+`)
 // sectionsSearchQuery finds sections by matching the normalized search input
 // against section codes, section names, display names, and organization names.
 // Concatenated fields allow queries like "XVIII Airborne Corps G6" to match.
+// sectionsSearchQuery finds sections by matching the normalized search input
+// against section codes, section names, display names, and organization names.
+// Results are ranked first by match strength, then by echelon (Corps before
+// Division before Command), then alphabetically. Concatenated fields allow
+// queries like "XVIII Airborne Corps G6" to match.
 const sectionsSearchQuery = `
 WITH searchable AS (
     SELECT
@@ -23,6 +28,7 @@ WITH searchable AS (
         s.organization_id,
         o.organization_name,
         COALESCE(o.short_name, '')                AS organization_short_name,
+        COALESCE(o.echelon, '')                   AS echelon,
         s.section_code,
         s.section_name,
         s.display_name,
@@ -66,9 +72,15 @@ ORDER BY
         WHEN (norm_org_short || norm_display) = $1 THEN 7
         ELSE 8
     END,
+    CASE echelon
+        WHEN 'Corps'    THEN 1
+        WHEN 'Division' THEN 2
+        WHEN 'Command'  THEN 3
+        ELSE                 4
+    END,
     organization_name ASC,
     display_name ASC
-LIMIT 25;
+LIMIT 50;
 `
 
 // sectionSearchResult represents a single section returned by the search endpoint.
