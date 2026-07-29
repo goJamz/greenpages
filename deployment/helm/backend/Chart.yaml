@@ -1,0 +1,9 @@
+---
+# Chart metadata.
+apiVersion: v2
+type: application
+version: v0.0.1
+
+# Component metadata.
+name: backend
+appVersion: v0.0.1

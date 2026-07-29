@@ -1,3 +1,4 @@
+// backend/internal/server/people_detail.go
 package server
 
 import (

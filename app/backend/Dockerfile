@@ -1,22 +1,32 @@
-# backend/Dockerfile
-FROM golang:1.26.2-bookworm AS builder
+# --- Stage 1: Build ---
+FROM registry.cdso.army.mil/cdso/containers/approved-base/go_alpine:1.26 AS builder
+
+SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
 WORKDIR /app
+
+COPY ecma.pem /usr/local/share/ca-certificates/ecma.crt
+RUN apk add --no-cache ca-certificates jq && update-ca-certificates
 
 COPY go.mod go.sum ./
 RUN go mod download
+
 COPY cmd ./cmd
 COPY internal ./internal
+COPY scripts ./scripts
 
-RUN go build -o /app/server ./cmd/server
+RUN scripts/govulncheck-report.sh
 
-FROM debian:bookworm-slim
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /app/server ./cmd/server
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+# --- Stage 2: Runtime ---
+FROM registry.cdso.army.mil/cdso/containers/approved-base/distroless:alpine-3.22 AS runtime
 
 WORKDIR /app
 
-COPY --from=builder /app/server /app/server
+COPY --from=builder --chown=10000:65534 /app/server /app/server
+
+USER 10000:65534
 
 EXPOSE 8080
 

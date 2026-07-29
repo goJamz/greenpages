@@ -1,3 +1,4 @@
+// backend/internal/server/people_search.go
 package server
 
 import (
@@ -169,11 +170,11 @@ type personSearchResponse struct {
 
 // handlePeopleSearch handles GET /api/people/search?q=...
 func (applicationServer *Server) handlePeopleSearch(responseWriter http.ResponseWriter, request *http.Request) {
-	var rawQuery string                // Raw q parameter from the URL.
-	var normalizedQuery string         // Cleaned search term for database matching.
-	var results []personSearchResult   // Results from the database search.
-	var searchError error              // Error returned by the search function.
-	var response personSearchResponse  // JSON response payload.
+	var rawQuery string               // Raw q parameter from the URL.
+	var normalizedQuery string        // Cleaned search term for database matching.
+	var results []personSearchResult  // Results from the database search.
+	var searchError error             // Error returned by the search function.
+	var response personSearchResponse // JSON response payload.
 
 	responseWriter.Header().Set("Content-Type", "application/json")
 
@@ -209,10 +210,10 @@ func (applicationServer *Server) handlePeopleSearch(responseWriter http.Response
 
 // searchPeople queries the database for people matching the normalized search term.
 func (applicationServer *Server) searchPeople(requestContext context.Context, normalizedQuery string) ([]personSearchResult, error) {
-	var rows *sql.Rows                // Result set from the database query.
-	var results []personSearchResult  // Collected search results.
-	var current personSearchResult    // Current row being scanned.
-	var queryError error              // Error returned by the query or row scan.
+	var rows *sql.Rows               // Result set from the database query.
+	var results []personSearchResult // Collected search results.
+	var current personSearchResult   // Current row being scanned.
+	var queryError error             // Error returned by the query or row scan.
 
 	rows, queryError = applicationServer.db.QueryContext(requestContext, peopleSearchQuery, normalizedQuery)
 	if queryError != nil {
@@ -246,7 +247,7 @@ func (applicationServer *Server) searchPeople(requestContext context.Context, no
 			return nil, queryError
 		}
 
-        current.BilletStatus = normalizeBilletStatus(current.BilletStatus)
+		current.BilletStatus = normalizeBilletStatus(current.BilletStatus)
 
 		results = append(results, current)
 	}

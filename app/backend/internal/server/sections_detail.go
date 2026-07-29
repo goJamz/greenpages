@@ -1,3 +1,4 @@
+// backend/internal/server/sections_detail.go
 package server
 
 import (
@@ -15,9 +16,9 @@ SELECT
     s.organization_id,
     o.organization_name,
     COALESCE(o.short_name, '') AS organization_short_name,
-    s.section_code,
-    s.section_name,
-    s.display_name
+	COALESCE(s.section_code, '') AS section_code,
+	COALESCE(s.section_name, '') AS section_name,
+	COALESCE(s.display_name, '') AS display_name
 FROM sections s
 INNER JOIN organizations o
     ON o.organization_id = s.organization_id
@@ -178,36 +179,36 @@ func (applicationServer *Server) getSectionDetail(
 	requestContext context.Context,
 	sectionID int64,
 ) (sectionDetail, []billetResult, error) {
-	var detailResult sectionDetail          // Section metadata loaded from the database.
-	var billetRows *sql.Rows                // Result set of billets and occupants for the section.
-	var billetResults []billetResult        // Final ordered list of billets.
-	var currentBillet billetResult          // Current billet being assembled from one or more rows.
-	var currentOccupant billetOccupant      // Current occupant built from the scanned row.
-	var currentBilletID int64               // Billet ID from the current row.
-	var currentPositionNumber string        // Position number from the current row.
-	var currentBilletTitle string           // Billet title from the current row.
-	var currentGradeCode string             // Grade code from the current row.
-	var currentRankGroup string             // Rank group from the current row.
-	var currentBranchCode string            // Branch code from the current row.
-	var currentMOSCode string               // MOS code from the current row.
-	var currentAOCCode string               // AOC code from the current row.
-	var currentComponent string             // Component from the current row.
-	var currentUIC string                   // UIC from the current row.
-	var currentParagraphNumber string       // Paragraph number from the current row.
-	var currentLineNumber string            // Line number from the current row.
-	var currentDutyLocation string          // Duty location from the current row.
-	var currentStateCode string             // State code from the current row.
-	var currentOccupancyStatus string       // Billet occupancy status from the current row.
-	var currentPersonID sql.NullInt64       // Person ID from the current row when an occupant exists.
-	var currentOccupantName string          // Occupant display name from the current row.
-	var currentOccupantRank string          // Occupant rank from the current row.
-	var currentOccupantEmail string         // Occupant email from the current row.
-	var currentOccupantPhone string         // Occupant phone from the current row.
-	var currentOccupantOfficeSymbol string  // Occupant office symbol from the current row.
-	var currentOccupantIsPrimary bool       // Primary flag from the current row.
-	var previousBilletID int64              // Previous billet ID processed in the loop.
-	var haveCurrentBillet bool              // Tracks whether a billet is currently being assembled.
-	var queryError error                    // Error returned by the queries.
+	var detailResult sectionDetail         // Section metadata loaded from the database.
+	var billetRows *sql.Rows               // Result set of billets and occupants for the section.
+	var billetResults []billetResult       // Final ordered list of billets.
+	var currentBillet billetResult         // Current billet being assembled from one or more rows.
+	var currentOccupant billetOccupant     // Current occupant built from the scanned row.
+	var currentBilletID int64              // Billet ID from the current row.
+	var currentPositionNumber string       // Position number from the current row.
+	var currentBilletTitle string          // Billet title from the current row.
+	var currentGradeCode string            // Grade code from the current row.
+	var currentRankGroup string            // Rank group from the current row.
+	var currentBranchCode string           // Branch code from the current row.
+	var currentMOSCode string              // MOS code from the current row.
+	var currentAOCCode string              // AOC code from the current row.
+	var currentComponent string            // Component from the current row.
+	var currentUIC string                  // UIC from the current row.
+	var currentParagraphNumber string      // Paragraph number from the current row.
+	var currentLineNumber string           // Line number from the current row.
+	var currentDutyLocation string         // Duty location from the current row.
+	var currentStateCode string            // State code from the current row.
+	var currentOccupancyStatus string      // Billet occupancy status from the current row.
+	var currentPersonID sql.NullInt64      // Person ID from the current row when an occupant exists.
+	var currentOccupantName string         // Occupant display name from the current row.
+	var currentOccupantRank string         // Occupant rank from the current row.
+	var currentOccupantEmail string        // Occupant email from the current row.
+	var currentOccupantPhone string        // Occupant phone from the current row.
+	var currentOccupantOfficeSymbol string // Occupant office symbol from the current row.
+	var currentOccupantIsPrimary bool      // Primary flag from the current row.
+	var previousBilletID int64             // Previous billet ID processed in the loop.
+	var haveCurrentBillet bool             // Tracks whether a billet is currently being assembled.
+	var queryError error                   // Error returned by the queries.
 
 	queryError = applicationServer.db.QueryRowContext(
 		requestContext,

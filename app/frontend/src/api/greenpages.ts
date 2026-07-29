@@ -1,5 +1,33 @@
 const API_BASE = '/api'
 
+let authenticationReloadStarted = false // Prevents multiple API failures from triggering repeated reload attempts.
+
+async function apiFetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
+  const httpResponse = await fetch(input, {
+    ...init,
+    headers: {
+      Accept: 'application/json',
+      ...init?.headers,
+    },
+    redirect: 'manual',
+  })
+
+  if (httpResponse.type === 'opaqueredirect') {
+    return reloadCurrentPageForAuthentication()
+  }
+
+  return httpResponse
+}
+
+function reloadCurrentPageForAuthentication(): never {
+  if (!authenticationReloadStarted) {
+    authenticationReloadStarted = true
+    window.location.reload()
+  }
+
+  throw new Error('Authentication is required')
+}
+
 export type SectionSearchResult = {
   section_id: number
   organization_id: number
@@ -260,25 +288,25 @@ function buildExplorerQueryString(
 }
 
 export async function searchSections(query: string): Promise<SectionSearchResponse> {
-  const httpResponse = await fetch(`${API_BASE}/sections/search?q=${encodeURIComponent(query)}`)
+  const httpResponse = await apiFetch(`${API_BASE}/sections/search?q=${encodeURIComponent(query)}`)
 
   return readJsonResponse<SectionSearchResponse>(httpResponse)
 }
 
 export async function searchPeople(query: string): Promise<PersonSearchResponse> {
-  const httpResponse = await fetch(`${API_BASE}/people/search?q=${encodeURIComponent(query)}`)
+  const httpResponse = await apiFetch(`${API_BASE}/people/search?q=${encodeURIComponent(query)}`)
 
   return readJsonResponse<PersonSearchResponse>(httpResponse)
 }
 
 export async function getSectionDetail(sectionID: string): Promise<SectionDetailResponse> {
-  const httpResponse = await fetch(`${API_BASE}/sections/${encodeURIComponent(sectionID)}`)
+  const httpResponse = await apiFetch(`${API_BASE}/sections/${encodeURIComponent(sectionID)}`)
 
   return readJsonResponse<SectionDetailResponse>(httpResponse)
 }
 
 export async function getPersonDetail(personID: string): Promise<PersonDetailResponse> {
-  const httpResponse = await fetch(`${API_BASE}/people/${encodeURIComponent(personID)}`)
+  const httpResponse = await apiFetch(`${API_BASE}/people/${encodeURIComponent(personID)}`)
 
   return readJsonResponse<PersonDetailResponse>(httpResponse)
 }
@@ -290,7 +318,7 @@ export async function getExplorerPositions(
 ): Promise<ExplorerPositionsResponse> {
   const queryString = buildExplorerQueryString(filters, limit, offset)
   const endpoint = queryString === '' ? `${API_BASE}/explorer/positions` : `${API_BASE}/explorer/positions?${queryString}`
-  const httpResponse = await fetch(endpoint)
+  const httpResponse = await apiFetch(endpoint)
 
   return readJsonResponse<ExplorerPositionsResponse>(httpResponse)
 }

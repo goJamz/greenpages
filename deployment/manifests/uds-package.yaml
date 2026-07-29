@@ -1,0 +1,36 @@
+---
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  namespace: greenpages
+  name: greenpages
+spec:
+  network:
+    serviceMesh:
+      mode: ambient
+    expose:
+      - service: frontend
+        selector:
+          app.kubernetes.io/component: frontend
+        gateway: tenant
+        host: greenpages
+        port: 8080
+    allow:
+      - direction: Ingress
+        description: Allow inbound traffic between Green Pages pods in the same namespace.
+        remoteGenerated: IntraNamespace
+      - direction: Egress
+        description: Allow outbound traffic between Green Pages pods in the same namespace.
+        remoteGenerated: IntraNamespace
+      - direction: Egress
+        description: Allow backend outbound traffic to Azure Key Vault and PostgreSQL Flexible Server.
+        remoteGenerated: Anywhere
+        selector:
+          app.kubernetes.io/component: backend
+  sso:
+    - name: Green Pages
+      clientId: greenpages
+      enableAuthserviceSelector:
+        app.kubernetes.io/component: frontend
+      redirectUris:
+        - https://greenpages.###ZARF_VAR_DOMAIN###/*

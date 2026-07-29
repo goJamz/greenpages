@@ -1,0 +1,4 @@
+greenpages:
+  zarf_directory: .gitlab/expedition-0/test/uds/zarf
+  uds_directory: .gitlab/expedition-0/test/uds
+  uds_network_settings_file: .gitlab/expedition-0/test/uds/uds-package.test.yaml

@@ -1,0 +1,40 @@
+organization: expedition-0
+security_group: ai2c
+deployment_level: PRODUCTION
+
+greenpages-backend:
+  project_type: container
+  dockerfile_folder: backend
+  container_lifespan: PERSISTENT
+  connection_context: INTERNAL
+  zap:
+    debug: true
+    service_ports:
+      - 5432
+    gitlab_services:
+      - name: registry.cdso.army.mil/ai2c/postgresql/database:548010
+        alias: database
+    database_init:
+      type: postgres
+      host: database
+      user: postgres
+      password: postgres
+      database_name: postgres
+      init_file_path: ./backend/configure.sql
+    scanned_image_variables:
+      DB_HOST: database
+      DB_PORT: "5432"
+      DB_USER: greenpages
+      DB_PASSWORD: greenpages
+      DB_NAME: greenpages
+    wait: 10
+
+greenpages-frontend:
+  project_type: container
+  dockerfile_folder: frontend
+  container_lifespan: PERSISTENT
+  connection_context: EXTERNAL
+  container_spec:
+    non_minimized: "registry.cdso.army.mil/cdso/containers/approved-base/nginx:1.29 is from the approved based container registry."
+    allow_from_sources:
+    - registry.cdso.army.mil/cdso/containers/approved-base/nginx:1.29 

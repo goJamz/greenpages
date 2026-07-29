@@ -1,0 +1,5 @@
+# ~ /greenpages/deployment/.gitlab/expedition-0/dev/cdso_config.dev.yml
+greenpages:
+  zarf_directory: .
+  uds_directory: .gitlab/expedition-0/dev/uds
+  uds_network_settings_file: null

@@ -1,0 +1,6 @@
+/gocheck.sh
+/refresh_image.sh
+.env
+.env.*
+/notes.md
+backend/data/

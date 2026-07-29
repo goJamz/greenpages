@@ -1,0 +1,29 @@
+# ~/greenpages/deployment/.gitlab/expedition-0/dev/dev.gitlab-ci.yml
+# Define all pipelines to include.
+include:
+  # --------------------------------------------------------------
+  # App deployment.
+  # --------------------------------------------------------------
+
+ # Deploy the UDS bundle.
+  - component: $CI_SERVER_FQDN/ai2c/caravan/pipelines/deploy@main
+    rules:
+      - if: '$UDS_BUNDLE_TASK != "remove"'
+    inputs:
+      name: greenpages
+      pipeline_type: bundle
+      expedition: 0
+      environment: dev
+      cdso_config_path: .gitlab/expedition-0/dev/cdso_config.dev.yml
+#
+
+  # Remove the app's UDS bundle.
+  - component: $CI_SERVER_FQDN/ai2c/caravan/pipelines/remove@main
+    rules:
+      - if: $UDS_BUNDLE_TASK == "remove"
+    inputs:
+      name: greenpages
+      pipeline_type: bundle
+      expedition: 0
+      environment: dev
+      cdso_config_path: .gitlab/expedition-0/dev/cdso_config.dev.yml

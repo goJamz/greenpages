@@ -1,3 +1,4 @@
+// backend/internal/server/sections_search.go
 package server
 
 import (
@@ -16,11 +17,6 @@ var alphaNumericPattern = regexp.MustCompile(`[^a-z0-9]+`)
 // sectionsSearchQuery finds sections by matching the normalized search input
 // against section codes, section names, display names, and organization names.
 // Concatenated fields allow queries like "XVIII Airborne Corps G6" to match.
-// sectionsSearchQuery finds sections by matching the normalized search input
-// against section codes, section names, display names, and organization names.
-// Results are ranked first by match strength, then by echelon (Corps before
-// Division before Command), then alphabetically. Concatenated fields allow
-// queries like "XVIII Airborne Corps G6" to match.
 const sectionsSearchQuery = `
 WITH searchable AS (
     SELECT
@@ -29,14 +25,14 @@ WITH searchable AS (
         o.organization_name,
         COALESCE(o.short_name, '')                AS organization_short_name,
         COALESCE(o.echelon, '')                   AS echelon,
-        s.section_code,
-        s.section_name,
-        s.display_name,
+		COALESCE(s.section_code, '') AS section_code,
+		COALESCE(s.section_name, '') AS section_name,
+		COALESCE(s.display_name, '') AS display_name,
         regexp_replace(LOWER(o.organization_name),           '[^a-z0-9]+', '', 'g') AS norm_org,
         regexp_replace(LOWER(COALESCE(o.short_name, '')),    '[^a-z0-9]+', '', 'g') AS norm_org_short,
-        regexp_replace(LOWER(s.section_code),                '[^a-z0-9]+', '', 'g') AS norm_code,
-        regexp_replace(LOWER(s.section_name),                '[^a-z0-9]+', '', 'g') AS norm_name,
-        regexp_replace(LOWER(COALESCE(s.display_name, '')),  '[^a-z0-9]+', '', 'g') AS norm_display
+		regexp_replace(LOWER(COALESCE(s.section_code, '')), '[^a-z0-9]+', '', 'g') AS norm_code,
+		regexp_replace(LOWER(COALESCE(s.section_name, '')), '[^a-z0-9]+', '', 'g') AS norm_name,
+        regexp_replace(LOWER(COALESCE(s.display_name, '')), '[^a-z0-9]+', '', 'g') AS norm_display
     FROM sections s
     INNER JOIN organizations o ON o.organization_id = s.organization_id
     WHERE o.is_current = TRUE
@@ -98,6 +94,7 @@ ORDER BY
         WHEN 'Command'  THEN 3
         ELSE                 4
     END,
+    -- 3. Alphabetical fallback.
     organization_name ASC,
     display_name ASC
 LIMIT 50;

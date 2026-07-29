@@ -1,2 +1,8 @@
 /gocheck.sh
-/image-refresh.sh
+/refresh_image.sh
+.env
+.env.*
+/notes.md
+backend/data/
+app/backend/data
+app/backend/ecma.pem
