@@ -1,0 +1,12 @@
+# ~/greenpages/app/compose.azure-db.yamlcompose.azure-db.yaml
+services:
+  backend:
+    environment:
+      APP_PORT: "8080"
+      DB_HOST: "${AZURE_DB_HOST}"
+      DB_PORT: "${AZURE_DB_PORT}"
+      DB_USER: "${AZURE_DB_USER}"
+      DB_PASSWORD: "${AZURE_DB_PASSWORD}"
+      DB_NAME: "${AZURE_DB_NAME}"
+      DB_SSL_MODE: "${AZURE_DB_SSL_MODE}"
+    depends_on: null

@@ -1,0 +1,45 @@
+# Define all pipelines to include.
+include:
+  # --------------------------------------------------------------
+  # Backend container image.
+  # --------------------------------------------------------------
+
+  # Continuous Integration pipeline for the backend container.
+  - component: $CI_SERVER_FQDN/cdso/cdso/review@main
+    rules:
+    inputs:
+      name: greenpages-backend
+      pipeline_type: application-container
+      cdso_config_path: .gitlab/expedition-0/prod/cdso_config.prod.yml
+
+  # Continuous Delivery pipeline for the backend container.
+  - component: $CI_SERVER_FQDN/ai2c/caravan/pipelines/deliver@main
+    rules:
+    inputs:
+      name: greenpages-backend
+      pipeline_type: container
+      expedition: 0
+      environment: prod
+      cdso_config_path: .gitlab/expedition-0/prod/cdso_config.prod.yml
+
+  # --------------------------------------------------------------
+  # Frontend container image.
+  # --------------------------------------------------------------
+
+  # Continuous Integration pipeline for the frontend container.
+  - component: $CI_SERVER_FQDN/cdso/cdso/review@main
+    rules:
+    inputs:
+      name: greenpages-frontend
+      pipeline_type: application-container
+      cdso_config_path: .gitlab/expedition-0/prod/cdso_config.prod.yml
+
+  # Continuous Delivery pipeline for the frontend container.
+  - component: $CI_SERVER_FQDN/ai2c/caravan/pipelines/deliver@main
+    rules:
+    inputs:
+      name: greenpages-frontend
+      pipeline_type: container
+      expedition: 0
+      environment: prod
+      cdso_config_path: .gitlab/expedition-0/prod/cdso_config.prod.yml
