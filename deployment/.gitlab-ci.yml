@@ -1,0 +1,58 @@
+# ~/greenpages/deployment/.gitlab-ci.yml
+variables:
+  PLATFORM:
+    description: "Which PLATFORM do you want to target?"
+    options:
+      - "Expedition 0"
+      - Oasis
+    value: "Expedition 0"
+  ENVIRONMENT:
+    description: "Which environment do you want to target?"
+    options:
+      - dev
+      - test
+      - prod
+    value: prod
+  UDS_BUNDLE_TASK:
+    description: What do you want to do with your UDS bundle?
+    options:
+      - nothing
+      - deploy
+      - remove
+    value: nothing
+
+stages:
+  - pre-build
+  - pre-test
+  - build
+  - post-test
+  - review
+  - clean
+  - deliver
+  - deploy
+  - remove
+
+# Only allow manual "Run pipeline" executions from the UI.
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: always
+    - when: never
+
+include:
+  - local: .gitlab/expedition-0/prod/prod.gitlab-ci.yml
+    rules:
+      # Web UI (Run pipeline) selection:
+      - if: '$CI_PIPELINE_SOURCE == "web" && ($PLATFORM == "Expedition 0" || $PLATFORM == "") && $ENVIRONMENT == "prod"'
+      # Non-web fallback (only matters if you later relax workflow):
+      - if: '$CI_PIPELINE_SOURCE != "web" && $CI_COMMIT_BRANCH =~ /^prod/'
+
+  - local: .gitlab/expedition-0/test/test.gitlab-ci.yml
+    rules:
+      - if: '$CI_PIPELINE_SOURCE == "web" && ($PLATFORM == "Expedition 0" || $PLATFORM == "") && $ENVIRONMENT == "test"'
+      - if: '$CI_PIPELINE_SOURCE != "web" && $CI_COMMIT_BRANCH =~ /^test/'
+
+  - local: .gitlab/expedition-0/dev/dev.gitlab-ci.yml
+    rules:
+      - if: '$CI_PIPELINE_SOURCE == "web" && ($PLATFORM == "Expedition 0" || $PLATFORM == "") && ($ENVIRONMENT == "dev" || $ENVIRONMENT == "")'
+      - if: '$CI_PIPELINE_SOURCE != "web" && $CI_COMMIT_BRANCH !~ /^(test|prod)/'

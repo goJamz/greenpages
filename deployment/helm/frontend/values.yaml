@@ -1,0 +1,12 @@
+---
+namespace: greenpages
+replicaCount: 1
+image:
+  pullPolicy: Always
+  registry: cazcaravandecoreacr.azurecr.us
+  repository: ai2c/greenpages/app/greenpages-frontend
+  tag: v0.0.1
+service:
+  type: ClusterIP
+  name: frontend
+  port: 8080

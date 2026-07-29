@@ -1,0 +1,26 @@
+---
+namespace: greenpages
+replicaCount: 1
+image:
+  pullPolicy: Always
+  registry: cazcaravandecoreacr.azurecr.us
+  repository: ai2c/greenpages/app/greenpages-backend
+  tag: v0.0.1
+service:
+  type: ClusterIP
+  name: backend
+  port: 8080
+nodeSelector:
+  agentpool: greenpages
+env:
+  APP_PORT: "APP_PORT"
+  DB_HOST: "DB_HOST"
+  DB_PORT: "DB_PORT"
+  DB_USER: "DB_USER"
+  DB_NAME: "DB_NAME"
+  DB_SSL_MODE: "DB_SSL_MODE"
+  DB_PASSWORD_SECRET_NAME: "DB_PASSWORD_SECRET_NAME"
+  AZURE_TENANT_ID: "AZURE_TENANT_ID"
+  AZURE_CLIENT_ID: "AZURE_CLIENT_ID"
+  AZURE_CLIENT_SECRET: "AZURE_CLIENT_SECRET"
+  AZURE_KEY_VAULT_URL: "AZURE_KEY_VAULT_URL"

@@ -1,0 +1,113 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/zarf-dev/zarf/v0.75.0/zarf.schema.json
+---
+kind: ZarfPackageConfig
+metadata:
+  name: greenpages
+  version: v0.0.1
+
+variables:
+  - name: DOMAIN
+    description: Base domain for the target environment, such as dev.ai.army.mil, test.ai.army.mil, or ai.army.mil
+
+  - name: APP_PORT
+    description: Backend application port
+
+  - name: DB_HOST
+    description: PostgreSQL Flexible Server host
+
+  - name: DB_PORT
+    description: PostgreSQL port
+
+  - name: DB_USER
+    description: PostgreSQL user
+
+  - name: DB_NAME
+    description: PostgreSQL database name
+
+  - name: DB_SSL_MODE
+    description: PostgreSQL SSL mode
+
+  - name: DB_PASSWORD_SECRET_NAME
+    description: Key Vault secret name for the database password
+
+  - name: AZURE_KEY_VAULT_URL
+    description: Azure Key Vault URL
+
+  - name: AZURE_TENANT_ID
+    description: Azure Tenant ID
+
+  - name: AZURE_CLIENT_ID
+    description: Green Pages service principal client ID
+
+  - name: AZURE_CLIENT_SECRET
+    description: Green Pages service principal client secret
+    sensitive: true
+
+components:
+  - name: backend
+    required: true
+    charts:
+      - namespace: greenpages
+        name: backend
+        version: v0.0.1
+        localPath: helm/backend
+        variables:
+          - name: APP_PORT
+            path: env.APP_PORT
+            description: Backend application port
+
+          - name: DB_HOST
+            path: env.DB_HOST
+            description: PostgreSQL Flexible Server host
+
+          - name: DB_PORT
+            path: env.DB_PORT
+            description: PostgreSQL port
+
+          - name: DB_USER
+            path: env.DB_USER
+            description: PostgreSQL user
+
+          - name: DB_NAME
+            path: env.DB_NAME
+            description: PostgreSQL database name
+
+          - name: DB_SSL_MODE
+            path: env.DB_SSL_MODE
+            description: PostgreSQL SSL mode
+
+          - name: DB_PASSWORD_SECRET_NAME
+            path: env.DB_PASSWORD_SECRET_NAME
+            description: Key Vault secret name for the database password
+
+          - name: AZURE_KEY_VAULT_URL
+            path: env.AZURE_KEY_VAULT_URL
+            description: Azure Key Vault URL
+
+          - name: AZURE_TENANT_ID
+            path: env.AZURE_TENANT_ID
+            description: Azure Tenant ID
+
+          - name: AZURE_CLIENT_ID
+            path: env.AZURE_CLIENT_ID
+            description: Green Pages service principal client ID
+
+          - name: AZURE_CLIENT_SECRET
+            path: env.AZURE_CLIENT_SECRET
+            description: Green Pages service principal client secret
+
+  - name: frontend
+    required: true
+    charts:
+      - namespace: greenpages
+        name: frontend
+        version: v0.0.1
+        localPath: helm/frontend
+
+  - name: greenpages-config
+    required: true
+    manifests:
+      - name: greenpages-uds
+        namespace: greenpages
+        files:
+          - manifests/uds-package.yaml
