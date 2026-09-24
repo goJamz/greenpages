@@ -73,7 +73,7 @@ docker compose -f app/backend/compose.yaml up --build postgres backend
 In another terminal, start the frontend natively:
 
 ```bash
-cd app/frontend
+cd app/frontend/frontend
 npm run dev
 ```
 

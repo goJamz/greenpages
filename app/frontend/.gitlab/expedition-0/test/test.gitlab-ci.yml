@@ -1,0 +1,15 @@
+# Define the frontend test pipelines.
+include:
+  - component: $CI_SERVER_FQDN/cdso/cdso/review@main
+    inputs:
+      name: greenpages-frontend
+      pipeline_type: application-container
+      cdso_config_path: .gitlab/expedition-0/test/cdso_config.test.yml
+
+  - component: $CI_SERVER_FQDN/ai2c/caravan/pipelines/deliver@main
+    inputs:
+      name: greenpages-frontend
+      pipeline_type: container
+      expedition: 0
+      environment: test
+      cdso_config_path: .gitlab/expedition-0/test/cdso_config.test.yml

@@ -1,0 +1,13 @@
+organization: expedition-0
+security_group: ai2c
+deployment_level: PRODUCTION
+
+greenpages-frontend:
+  project_type: container
+  dockerfile_folder: frontend
+  container_lifespan: PERSISTENT
+  connection_context: EXTERNAL
+  container_spec:
+    non_minimized: "registry.cdso.army.mil/cdso/containers/approved-base/nginx:1.31 is from the approved base container registry."
+    allow_from_sources:
+      - registry.cdso.army.mil/cdso/containers/approved-base/nginx:1.31

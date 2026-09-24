@@ -1,0 +1,4 @@
+# Local project files
+.env
+.env.*
+/notes.md

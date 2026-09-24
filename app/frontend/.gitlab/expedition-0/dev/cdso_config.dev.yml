@@ -1,0 +1,8 @@
+organization: expedition-0
+security_group: ai2c
+deployment_level: DEVELOPMENT
+
+greenpages-frontend:
+  project_type: container
+  dockerfile_folder: frontend
+  container_lifespan: PERSISTENT
