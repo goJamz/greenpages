@@ -2,3 +2,9 @@
 .env
 .env.*
 /notes.md
+
+# Generated frontend dependencies and build output. These patterns also hide
+# artifacts left at the former application root after the frontend/ move.
+node_modules/
+dist/
+dist-ssr/
