@@ -1,4 +1,4 @@
-# ~/greenpages/app/compose.azure-db.yamlcompose.azure-db.yaml
+# Backend project Azure Database override.
 services:
   backend:
     environment:

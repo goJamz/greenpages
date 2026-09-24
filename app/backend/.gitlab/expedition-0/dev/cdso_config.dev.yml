@@ -1,4 +1,4 @@
-# ~/greenpages/app/.gitlab/expedition-0/dev/cdso_config.dev.yml
+# Backend development deployment configuration.
 organization: expedition-0
 security_group: ai2c
 deployment_level: DEVELOPMENT
@@ -8,8 +8,3 @@ greenpages-backend:
   dockerfile_folder: backend
   container_lifespan: PERSISTENT
   connection_context: INTERNAL
-
-greenpages-frontend:
-  project_type: container
-  dockerfile_folder: frontend
-  container_lifespan: PERSISTENT

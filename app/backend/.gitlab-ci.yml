@@ -1,4 +1,4 @@
-# ~/greenpages/app/.gitlab-ci.yml
+# Backend project pipeline entry point.
 variables:
   PLATFORM:
     description: "Which PLATFORM do you want to target?"

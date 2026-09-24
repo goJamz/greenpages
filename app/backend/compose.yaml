@@ -1,4 +1,4 @@
-# greenpages/compose.yaml
+# Backend project local development stack.
 services:
   postgres:
     image: postgres:18.3
@@ -36,14 +36,5 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-  frontend:
-    build:
-      context: ./frontend
-      target: runtime
-    container_name: greenpages-frontend
-    ports:
-      - "4173:8080"
-    depends_on:
-      - backend
 volumes:
   postgres-data:

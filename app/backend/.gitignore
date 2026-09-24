@@ -1,6 +1,13 @@
-/gocheck.sh
-/refresh_image.sh
+# Local-only notes and personal helper scripts (any directory).
+/notes.md
+gocheck.sh
+refresh_image.sh
+
+# Environment files carry credentials (e.g. .env.azure-db).
 .env
 .env.*
-/notes.md
+
+# Real-data Vantage CSV exports contain personal data. The loader defaults
+# DATA_DIR to the current directory, so ignore them anywhere, not just data/.
 backend/data/
+greenpages_*.csv

@@ -61,22 +61,20 @@ The repo intentionally favors simple, explicit code over premature abstraction.
 
 ## Local development
 
-There are now **two supported local workflows**.
-
-### 1. Daily development workflow
-Use this for normal frontend work.
+The backend project owns the local Compose stack. Run it from this combined
+working copy with the project Compose file:
 
 Start Postgres and backend with Compose:
 
 ```bash
- docker compose up postgres backend
+docker compose -f app/backend/compose.yaml up --build postgres backend
 ```
 
 In another terminal, start the frontend natively:
 
 ```bash
- cd frontend
- npm run dev
+cd app/frontend
+npm run dev
 ```
 
 URLs:
@@ -85,64 +83,34 @@ URLs:
 - Backend API: `http://localhost:8080`
 - Backend health: `http://localhost:8080/api/health`
 
-Why this path exists:
-
-- fastest frontend iteration
-- Vite hot reload stays intact
-- best workflow while UI and product behavior are still actively changing
-
-### 2. Full integration workflow
-Use this to test the full local stack in containers.
-
-```bash
- docker compose up --build
-```
-
-URLs:
-
-- Frontend integration container: `http://localhost:4173`
-- Backend API: `http://localhost:8080`
-- Backend health: `http://localhost:8080/api/health`
-
-In this mode:
-
-- Postgres runs in Compose
-- backend runs in Compose
-- frontend runs as a built production-style artifact served by nginx
-- nginx proxies `/api` requests to the backend container over the Docker network
-
-This is meant for integration testing, not for the fastest day-to-day UI loop.
+The frontend remains native during local development so Vite hot reload stays
+fast. The backend Compose project intentionally contains only Postgres and the
+backend service.
 
 ## Common commands
 
 Start native-dev backend dependencies:
 
 ```bash
- docker compose up postgres backend
-```
-
-Start full integration stack:
-
-```bash
- docker compose up --build
+docker compose -f app/backend/compose.yaml up --build postgres backend
 ```
 
 Stop the stack:
 
 ```bash
- docker compose down
+docker compose -f app/backend/compose.yaml down
 ```
 
 Stop the stack and remove volumes:
 
 ```bash
- docker compose down -v
+docker compose -f app/backend/compose.yaml down -v
 ```
 
 Quick health check:
 
 ```bash
- curl http://localhost:8080/api/health
+curl http://localhost:8080/api/health
 ```
 
 Expected response:
@@ -154,15 +122,9 @@ Expected response:
 ## Repo notes
 
 ### Frontend container posture
-The frontend Docker image is intentionally used for the integration path.
-
-It is **not** the primary daily frontend development loop.
-
-That is deliberate:
-
-- daily UI work stays fast with native Vite
-- the repo still gains a real frontend container path
-- the delivery direction is preserved without slowing normal product work
+The frontend Dockerfile remains available for frontend image builds, but the
+backend project's Compose file does not build or run the frontend container.
+Native Vite remains the primary daily frontend development loop.
 
 ### Current delivery direction
 Target platform direction remains:

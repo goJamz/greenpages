@@ -1,11 +1,13 @@
-node_modules
-dist
-.git
-.gitignore
-README.md
-npm-debug.log
-.DS_Store
-.env
-.env.local
-.gitlab
-migrations
+# Allowlist: send only what the Dockerfile copies into the build context.
+# Everything else (real-data CSVs, loader SQL, .env files, notes) stays on the host.
+# If the Dockerfile starts copying a new path, re-include it here.
+*
+!ecma.pem
+!go.mod
+!go.sum
+!cmd/
+!cmd/**
+!internal/
+!internal/**
+!scripts/
+!scripts/**

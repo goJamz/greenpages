@@ -20,7 +20,7 @@ greenpages-backend:
       user: postgres
       password: postgres
       database_name: postgres
-      init_file_path: ./backend/configure.sql
+      init_file_path: ./backend/db/configure.sql
     scanned_image_variables:
       DB_HOST: database
       DB_PORT: "5432"
@@ -28,9 +28,3 @@ greenpages-backend:
       DB_PASSWORD: greenpages
       DB_NAME: greenpages
     wait: 10
-
-greenpages-frontend:
-  project_type: container
-  dockerfile_folder: frontend
-  container_lifespan: PERSISTENT
-  connection_context: EXTERNAL
