@@ -6,7 +6,7 @@ SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 WORKDIR /app
 
 COPY ecma.pem /usr/local/share/ca-certificates/ecma.crt
-RUN apk add --no-cache ca-certificates jq && update-ca-certificates
+RUN apk add --no-cache ca-certificates && update-ca-certificates
 
 COPY go.mod go.sum ./
 RUN go mod download
