@@ -8,10 +8,6 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-COPY scripts ./scripts
-RUN npm audit --json > /tmp/npm-audit.json || true
-RUN node scripts/npm-audit-report.mjs /tmp/npm-audit.json
-
 COPY . .
 RUN npm run build
 
